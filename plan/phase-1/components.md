@@ -1,4 +1,4 @@
-# Components and wiring
+# Phase 1 components and wiring
 
 ## Distinguish internal and external peripherals
 

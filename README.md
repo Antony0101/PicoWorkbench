@@ -4,7 +4,9 @@ A desktop RP2040 firmware simulator with a C engine, Python controller, and
 PySide6 GUI. Load real ARM ELF firmware, run or step it, inspect registers and
 memory, wire digital components, and watch UART output and GPIO waveforms.
 
-This is a working first release of the [implementation plan](plan/README.md).
+This is a working first release of [Phase 1](plan/phase-1/README.md).
+[Phase 2](plan/phase-2/README.md) plans desktop UI/UX improvements; see the
+[development phases](plan/README.md) for both plans and their status.
 Real B2 ROM boot, UF2 loading and a pinned MicroPython UART profile are supported.
 USB transfers and additional OS/hardware validation remain outside the delivered scope.
 The current engine uses functional timing; it does
@@ -263,4 +265,4 @@ Firmware compiler tests skip when ARM GCC is unavailable; GUI tests skip when
 PySide6 is absent. For the full checks, install the GUI/dev extras and ARM compiler.
 
 See [compatibility](docs/compatibility.md), [engine/backend decisions](docs/backend.md),
-[validation instructions](docs/validation.md), and [implementation status](plan/implementation-status.md).
+[validation instructions](docs/validation.md), and [Phase 1 implementation status](plan/phase-1/implementation-status.md).

@@ -1,4 +1,4 @@
-# Implementation status
+# Phase 1 implementation status
 
 Version 0.1.0 implements a runnable C/Python desktop simulator. This document
 records delivered behavior separately from the broader roadmap; it does not mark
@@ -36,19 +36,19 @@ without changing the existing snapshot layout
 or ABI version 1. Internal helpers are hidden from the shared library's exports.
 SDK startup adds system-control and ROM ABI modules; ROM/UF2/flash/RTC bring both
 native builds to fourteen C files and 24 public functions, preserving ABI 1. See
-[backend boundaries](../docs/backend.md#boundaries-in-the-implementation).
+[backend boundaries](../../docs/backend.md#boundaries-in-the-implementation).
 
 The PIO increment is implemented: both blocks, all instruction families, FIFO
 and shift state, clock dividers, side-set/delays, IRQ routing, and a GUI inspector.
 The bundled direct-load `pio_blink` demo produces a 2 Hz GPIO25 waveform while
 the CPU sleeps. OUT_STICKY, INLINE_OUT_EN and input synchronizer latency
-remain outside its support contract. See [PIO details](../docs/pio.md).
+remain outside its support contract. See [PIO details](../../docs/pio.md).
 
 The DMA increment is implemented: twelve channels, widths, rings, chaining,
 trigger aliases, pause/abort, error/completion IRQs, and PIO/ADC/timer pacing.
 The bundled `dma_pio` demo generates six GPIO25 pulses while the CPU sleeps,
 then reports completion through DMA IRQ0. A GUI inspector displays live copied
-channel state. See [DMA details](../docs/dma.md) for supported DREQs and timing.
+channel state. See [DMA details](../../docs/dma.md) for supported DREQs and timing.
 
 The core-1 increment is implemented: separate CPU/NVIC/SysTick contexts on a
 shared memory map, FIFO launch/reset protocol, two eight-word FIFOs and IRQs,
@@ -56,7 +56,7 @@ shared memory map, FIFO launch/reset protocol, two eight-word FIFOs and IRQs,
 `multicore` example exchanges timer-driven work and replies while updating
 shared SRAM and GPIO25. Both runnable cores alternate instructions; their
 aggregate functional clock is not physical concurrent-core timing. Startup uses
-a ROM protocol shim. See [two-core details](../docs/multicore.md).
+a ROM protocol shim. See [two-core details](../../docs/multicore.md).
 
 External bus models participate through explicit request/response boundaries.
 They do not use arbitrary synchronous Python callbacks from the instruction loop.
@@ -69,21 +69,21 @@ initialization, clock setup, SRAM vectors and timer IRQ-backed sleeps. Functiona
 clock/reset control, SIO dividers and ROM bit/memory shims supply the audited
 dependencies. GUI F7 and the CLI build edited sources with the pinned SDK CMake
 profile. Both demos are bundled and run without build tools. See the
-[audit, profile and limits](../docs/sdk-startup.md).
+[audit, profile and limits](../../docs/sdk-startup.md).
 
 The ROM/flash increment is implemented. Core 0 executes the official B2 ROM,
 reads flash over modeled SSI, validates boot2 CRC, executes boot2 from SRAM and
 starts firmware. UF2 ingestion validates bounds, family/flags, page sizes,
 complete numbering, overlap and duplicates. SDK erase/program, flash export and
 reset persistence pass. The ROM stays local and is hash-checked; it is not packaged.
-See [boot and flash](../docs/boot.md).
+See [boot and flash](../../docs/boot.md).
 
 The MicroPython increment is implemented for the pinned 1.26.1 UART profile.
 Its unmodified RP2 port uses the exact upstream SDK/TinyUSB/MbedTLS revisions
 and a board configuration that disables USB. RTC/calendar/alarms, narrow I/O and
 UART IRQ fixes supply audited dependencies. The desktop runs editable Python
 through the UART raw REPL; CLI scripts, interruption, errors, GPIO/time, ADC,
-RTC, persistent LittleFS files and replay pass. See [MicroPython](../docs/micropython.md).
+RTC, persistent LittleFS files and replay pass. See [MicroPython](../../docs/micropython.md).
 
 Validation: 333 automated tests, including thirteen GUI tests; 286 native/runtime
 tests also pass under ASan/UBSan with leak detection disabled in this environment.
@@ -103,4 +103,4 @@ watchdog countdown/reset and other unvalidated hardware/module paths remain
 outside the delivered named-workload profiles.
 
 The precise implemented modes, approximations, and unsupported behavior are in
-[the compatibility matrix](../docs/compatibility.md).
+[the compatibility matrix](../../docs/compatibility.md).

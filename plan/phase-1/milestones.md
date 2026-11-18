@@ -1,4 +1,4 @@
-# Implementation milestones
+# Phase 1 implementation milestones
 
 Complete each gate before broadening compatibility. The checkboxes below are
 implementation status; broader compatibility remains governed by the status report.
@@ -49,7 +49,7 @@ state, step it, and reset without freezing the interface.
 - [x] Add UART output/input, including interrupt and FIFO behavior required by fixtures.
 - [x] Audit startup dependencies for selected Pico SDK examples: clocks, resets,
   synchronization, ROM calls, and flash behavior as applicable.
-  Pico SDK 2.2.0 blink/UART use the [documented SDK ELF shortcut](../docs/sdk-startup.md).
+  Pico SDK 2.2.0 blink/UART use the [documented SDK ELF shortcut](../../docs/sdk-startup.md).
 - [x] Implement dependencies or clearly document the selected boot shortcut.
 - [x] Add serial and waveform panels, ELF symbols, and initial source location mapping.
 
@@ -77,13 +77,13 @@ Treat these as separate increments with their own completion gates:
   the public C API and existing behavioral tests before adding chip features.
 - [x] PIO: state-machine instructions, FIFOs, pin mapping, clock dividers, stalls,
   IRQs, and inspection. Known waveforms and CPU interrupt wake-up pass within
-  the [documented functional limits](../docs/pio.md).
+  the [documented functional limits](../../docs/pio.md).
 - [x] DMA: channels, transfer widths, pacing/DREQ, interrupts, and bus interactions.
   Paced transfers and both completion interrupt lines pass within the
-  [documented functional limits](../docs/dma.md).
+  [documented functional limits](../../docs/dma.md).
 - [x] Core 1: startup, shared memory, inter-core FIFOs, spinlocks, interrupt routing,
   and deterministic scheduling. Shared-memory/FIFO exchanges, both interrupt
-  paths and reset replay pass within [documented limits](../docs/multicore.md).
+  paths and reset replay pass within [documented limits](../../docs/multicore.md).
 - [x] Validate an integrated DMA-to-PIO example after the individual gates pass.
 
 **Gate:** supported examples pass with explicit timing guarantees. Do not infer
@@ -92,13 +92,13 @@ cycle accuracy from matching only final register or buffer values.
 ## 6. Broader compatibility and distribution
 
 - [x] Extend normal boot and flash support; add UF2 loading with bounds validation.
-  [B2 core-0 ROM/boot2 and flash profile](../docs/boot.md).
+  [B2 core-0 ROM/boot2 and flash profile](../../docs/boot.md).
 - [x] Add watchdog, RTC, flash operations, or USB only as required by named workloads.
   RTC and serial flash support the named MicroPython UART workloads; USB and
   watchdog countdown/reset remain outside that profile.
 - [x] Evaluate a pinned MicroPython image, inventory its hardware dependencies,
   and implement them before claiming interpreter compatibility.
-  [MicroPython 1.26.1 UART profile and stock-image audit](../docs/micropython.md).
+  [MicroPython 1.26.1 UART profile and stock-image audit](../../docs/micropython.md).
 - [x] Add a headless command-line runner and stable project-format migration policy.
 - [x] Package the desktop application and document native library/toolchain setup.
 - [ ] Validate additional operating systems individually before advertising support.

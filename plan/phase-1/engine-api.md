@@ -1,4 +1,4 @@
-# Engine API contract
+# Phase 1 engine API contract
 
 The following names describe the intended interface, not an implemented header.
 Finalize structures and ownership rules in milestone 0 before building the GUI.
@@ -6,7 +6,7 @@ Finalize structures and ownership rules in milestone 0 before building the GUI.
 The delivered ABI is defined in `engine/include/rp2040_sim.h`. Its ELF loaders
 are `sim_load_elf` (direct) and the additive `sim_load_elf_sdk` (SDK 2.2.0 profile).
 Both retain ABI version 1; `sim_reset` repeats the previously selected startup
-mode. See [SDK startup semantics](../docs/sdk-startup.md).
+mode. See [SDK startup semantics](../../docs/sdk-startup.md).
 `sim_load_flash` and `sim_load_uf2` additionally accept an explicit B2 ROM and
 execute its reset vectors; these retain ABI 1 as additive entry points.
 

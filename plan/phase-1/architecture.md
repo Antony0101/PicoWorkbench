@@ -1,4 +1,4 @@
-# Architecture
+# Phase 1 architecture
 
 ## Technology choices
 
@@ -55,6 +55,9 @@ firmware/fixtures/
 tests/integration/
 examples/
 plan/
+  README.md
+  phase-1/
+  phase-2/
 ```
 
 Create directories when their milestones begin; avoid empty module scaffolding.
