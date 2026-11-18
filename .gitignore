@@ -1,0 +1,13 @@
+.venv/
+.tools/
+build/
+dist/
+*.egg-info/
+__pycache__/
+.pytest_cache/
+*.py[cod]
+*.so
+*.o
+*.elf
+*.uf2
+*.png

@@ -1,0 +1,12 @@
+{
+  "schema": 1,
+  "board": "pico",
+  "name": "DMA to PIO · CPU asleep",
+  "builtin": "dma_pio",
+  "clock_hz": 1000000,
+  "components": [
+    {"id": "led1", "kind": "led", "x": 620, "y": 140, "label": "DMA0 → PIO0 SM0"},
+    {"id": "probe1", "kind": "probe", "x": 620, "y": 330, "label": "GPIO25 · six pulses"}
+  ],
+  "wires": [["pico:GP25", "led1:signal"], ["pico:GP25", "probe1:signal"]]
+}

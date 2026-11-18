@@ -1,0 +1,38 @@
+{
+  "version": "1.26.1",
+  "startup": "rom",
+  "profile": "SIM_PICO UART; USB disabled",
+  "compiler": "arm-none-eabi-gcc (15:13.2.rel1-2) 13.2.1 20231009",
+  "sources": {
+    "micropython-1.26.1": {
+      "repository": "micropython/micropython",
+      "revision": "refs/tags/v1.26.1",
+      "archive_sha256": "10600e844f02a8b448cf176df71031d2eb3d731097a809a963ce9c35cef3d613"
+    },
+    "pico-sdk-micropython-1.26.1": {
+      "repository": "raspberrypi/pico-sdk",
+      "revision": "9a4113fbbae65ee82d8cd6537963bc3d3b14bcca",
+      "archive_sha256": "6151b5b4541b83b38b3e4f91995a79d895cb689b3d3c2c8ebc2e19ea66a86854"
+    },
+    "tinyusb-micropython-1.26.1": {
+      "repository": "hathach/tinyusb",
+      "revision": "5217cee5de4cd555018da90f9f1bcc87fb1c1d3a",
+      "archive_sha256": "c1c9dca6664960b4707f3b100f0e037a5680902a47cb5c0858205bedeb179d3c"
+    },
+    "mbedtls-micropython-1.26.1": {
+      "repository": "Mbed-TLS/mbedtls",
+      "revision": "107ea89daaefb9867ea9121002fbbdf926780e98",
+      "archive_sha256": "7dc3219b00ab2d33d5108a6cfb1b6d11c1476f882493acdf0be5bcc9a181336b"
+    }
+  },
+  "profile_sha256": {
+    "README.md": "23874b20a65b27d4022a5c9326447aa269111a7b4e70c8051db5c80e3c68b987",
+    "blink.py": "1e36afc4ed3ba61a3079ad89b0095ca5325ad2b2012f9e558338b0796cb98e04",
+    "manifest.py": "7d813391defe0ca2a14d9448042480cf7227f5b1dece0656cee19d8ba5f3c774",
+    "mpconfigboard.cmake": "1baf13ce7362fa651e82904967517565f3797b18c1e5d773472a80aef352a999",
+    "mpconfigboard.h": "7bd47f957b316f80e087fd6c19d0875f7bc7923a476909467abdb7c0032a594c",
+    "pins.csv": "c0ea657d09548764ca817f7d6739f0e617cb901de7bca15cc8079c5668dd63c8"
+  },
+  "uf2_sha256": "89f4e0bba9a524f635e7045e728d3960b4cb5eb0266ced47214abcb9137f6a62",
+  "source_date_epoch": "1757548800"
+}

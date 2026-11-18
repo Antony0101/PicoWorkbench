@@ -1,0 +1,18 @@
+{
+  "schema": 1,
+  "board": "pico",
+  "name": "I2C sensor + SPI loopback",
+  "clock_hz": 1000000,
+  "firmware": "../build/buses.elf",
+  "source": "../firmware/fixtures/buses.c",
+  "linker": "../firmware/fixtures/direct.ld",
+  "components": [
+    {"id": "sensor", "kind": "i2c_sensor", "x": 620, "y": 140, "label": "ID=42, temperature=25", "address": 72},
+    {"id": "loopback", "kind": "spi_loopback", "x": 620, "y": 380, "label": "Returns transmitted byte"}
+  ],
+  "wires": [
+    ["pico:GP4", "sensor:sda"], ["pico:GP5", "sensor:scl"],
+    ["pico:GP19", "loopback:mosi"], ["pico:GP16", "loopback:miso"],
+    ["pico:GP18", "loopback:sck"], ["pico:GP17", "loopback:cs"]
+  ]
+}

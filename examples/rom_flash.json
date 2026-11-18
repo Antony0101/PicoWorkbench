@@ -1,0 +1,15 @@
+{
+  "schema": 1,
+  "board": "pico",
+  "name": "B2 ROM + SDK flash erase/program",
+  "builtin": "sdk_flash",
+  "source_text": null,
+  "clock_hz": 1000000,
+  "startup": "rom",
+  "firmware": "",
+  "source": "",
+  "linker": "",
+  "bootrom": "",
+  "components": [],
+  "wires": []
+}

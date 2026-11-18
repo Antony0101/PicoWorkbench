@@ -1,0 +1,90 @@
+{
+  "schema": 1,
+  "board": "pico",
+  "name": "RP2040 peripheral workbench",
+  "builtin": "workbench",
+  "clock_hz": 1000000,
+  "firmware": "",
+  "source": "",
+  "linker": "",
+  "components": [
+    {
+      "id": "led1",
+      "kind": "led",
+      "x": 620,
+      "y": 100,
+      "label": "Blink on GP25",
+      "address": 72
+    },
+    {
+      "id": "button1",
+      "kind": "button",
+      "x": 620,
+      "y": 240,
+      "label": "Hold to blink faster",
+      "address": 72
+    },
+    {
+      "id": "sensor",
+      "kind": "i2c_sensor",
+      "x": 620,
+      "y": 380,
+      "label": "ID=42, temperature=25",
+      "address": 72
+    },
+    {
+      "id": "loopback",
+      "kind": "spi_loopback",
+      "x": 620,
+      "y": 560,
+      "label": "Echo each SPI byte",
+      "address": 72
+    },
+    {
+      "id": "pwm_led",
+      "kind": "led",
+      "x": 880,
+      "y": 120,
+      "label": "GP0: PWM 1kHz, 25%",
+      "address": 72
+    }
+  ],
+  "wires": [
+    [
+      "pico:GP25",
+      "led1:signal"
+    ],
+    [
+      "pico:GP14",
+      "button1:signal"
+    ],
+    [
+      "pico:GP4",
+      "sensor:sda"
+    ],
+    [
+      "pico:GP5",
+      "sensor:scl"
+    ],
+    [
+      "pico:GP19",
+      "loopback:mosi"
+    ],
+    [
+      "pico:GP16",
+      "loopback:miso"
+    ],
+    [
+      "pico:GP18",
+      "loopback:sck"
+    ],
+    [
+      "pico:GP17",
+      "loopback:cs"
+    ],
+    [
+      "pico:GP0",
+      "pwm_led:signal"
+    ]
+  ]
+}

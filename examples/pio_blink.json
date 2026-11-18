@@ -1,0 +1,12 @@
+{
+  "schema": 1,
+  "board": "pico",
+  "name": "PIO blink · CPU asleep",
+  "builtin": "pio_blink",
+  "clock_hz": 1000000,
+  "components": [
+    {"id": "led1", "kind": "led", "x": 620, "y": 140, "label": "PIO0 SM0 · 2 Hz"},
+    {"id": "probe1", "kind": "probe", "x": 620, "y": 330, "label": "GPIO25 PIO waveform"}
+  ],
+  "wires": [["pico:GP25", "led1:signal"], ["pico:GP25", "probe1:signal"]]
+}

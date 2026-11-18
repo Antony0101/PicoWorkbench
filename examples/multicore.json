@@ -1,0 +1,12 @@
+{
+  "schema": 1,
+  "board": "pico",
+  "name": "Two cores · FIFO and shared memory",
+  "builtin": "multicore",
+  "clock_hz": 1000000,
+  "components": [
+    {"id": "led1", "kind": "led", "x": 620, "y": 140, "label": "Core 1 · GPIO25"},
+    {"id": "probe1", "kind": "probe", "x": 620, "y": 330, "label": "Core 0 sends work every 250 ms"}
+  ],
+  "wires": [["pico:GP25", "led1:signal"], ["pico:GP25", "probe1:signal"]]
+}

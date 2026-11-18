@@ -1,0 +1,19 @@
+{
+  "schema": 1,
+  "board": "pico",
+  "name": "Pico blink + button",
+  "clock_hz": 1000000,
+  "firmware": "",
+  "source": "../firmware/fixtures/blink.c",
+  "linker": "../firmware/fixtures/direct.ld",
+  "components": [
+    {"id": "led1", "kind": "led", "x": 620, "y": 140, "label": "External LED"},
+    {"id": "button1", "kind": "button", "x": 620, "y": 330, "label": "Hold to blink faster"},
+    {"id": "probe1", "kind": "probe", "x": 620, "y": 490, "label": "GPIO25 probe"}
+  ],
+  "wires": [
+    ["pico:GP25", "led1:signal"],
+    ["pico:GP14", "button1:signal"],
+    ["pico:GP25", "probe1:signal"]
+  ]
+}

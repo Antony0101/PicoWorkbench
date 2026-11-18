@@ -1,0 +1,41 @@
+{
+  "schema": 1,
+  "board": "pico",
+  "name": "B2 ROM + boot2 + SDK blink",
+  "builtin": "sdk_blink",
+  "source_text": null,
+  "clock_hz": 1000000,
+  "startup": "rom",
+  "firmware": "",
+  "source": "",
+  "linker": "",
+  "bootrom": "",
+  "components": [
+    {
+      "id": "led1",
+      "kind": "led",
+      "x": 620,
+      "y": 140,
+      "label": "SDK sleep_ms(250)",
+      "address": 72
+    },
+    {
+      "id": "probe1",
+      "kind": "probe",
+      "x": 620,
+      "y": 330,
+      "label": "GPIO25 SDK waveform",
+      "address": 72
+    }
+  ],
+  "wires": [
+    [
+      "pico:GP25",
+      "led1:signal"
+    ],
+    [
+      "pico:GP25",
+      "probe1:signal"
+    ]
+  ]
+}

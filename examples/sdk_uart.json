@@ -1,0 +1,14 @@
+{
+  "schema": 1,
+  "board": "pico",
+  "name": "Pico SDK 2.2.0 UART",
+  "builtin": "sdk_uart",
+  "source_text": null,
+  "clock_hz": 1000000,
+  "startup": "sdk",
+  "firmware": "",
+  "source": "",
+  "linker": "",
+  "components": [],
+  "wires": []
+}

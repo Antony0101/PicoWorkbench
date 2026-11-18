@@ -1,0 +1,26 @@
+{
+  "pico_sdk": "2.2.0",
+  "board": "pico",
+  "startup": "sdk",
+  "sdk_archive_sha256": "dbd8db79015aced4ef35cbaa88051b0d451775010d20202e1c7d2bee69c25b35",
+  "compiler": "arm-none-eabi-gcc (15:13.2.rel1-2) 13.2.1 20231009",
+  "profile_sha256": "bb0db58d403b46433cb61ac6fe6d4f5ec3fcc92ffcdb8ffc3058fc87d3723068",
+  "newlib": "4.4.0.20231231-2 (Ubuntu)",
+  "workloads": {
+    "sdk_blink": {
+      "startup": "sdk",
+      "source_sha256": "85a004d918e2757fc674c1456a2aa9dc169ab07b02b93a0e8a5c526aa2642eec",
+      "bundled_elf_sha256": "44bcf2d4805e7a3c2f769d176e31d4839202b4cab37078e4253975517cdd46cb"
+    },
+    "sdk_uart": {
+      "startup": "sdk",
+      "source_sha256": "96f932192e544ff9e429fc7843939afdc21a30213606dc57380085d4b08a437b",
+      "bundled_elf_sha256": "f6b60716c1cb5ef5b2aa49dc3ddf510d8bcd76ef3598ae7d6ae7127fbcab4001"
+    },
+    "sdk_flash": {
+      "startup": "rom",
+      "source_sha256": "994e99213d921b2ffcafaa045d7abcf4e8ad7f089fa9a9dac69b04112b731268",
+      "bundled_elf_sha256": "75a66325027e2a7d6816870f6811438a1ebd291f61e6d85c933af6a4130d8990"
+    }
+  }
+}
