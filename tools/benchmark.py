@@ -55,10 +55,14 @@ def headless():
 def gui_pause():
     os.environ.setdefault('QT_QPA_PLATFORM', 'offscreen')
     from PySide6.QtTest import QTest
+    from PySide6.QtCore import QSettings
+    from tempfile import TemporaryDirectory
     from PySide6.QtWidgets import QApplication
     from rp2040_sim.gui.app import Window
     app = QApplication.instance() or QApplication([])
-    window = Window(ROOT / 'examples/micropython.json')
+    preferences = TemporaryDirectory(prefix='rp2040-benchmark-')
+    window = Window(ROOT / 'examples/micropython.json',
+                    settings=QSettings(str(Path(preferences.name) / 'settings.ini'), QSettings.Format.IniFormat))
 
     def wait(condition, timeout=15):
         end = time.monotonic() + timeout
@@ -70,7 +74,7 @@ def gui_pause():
 
     try:
         window.show()
-        wait(lambda: window.state is not None and window.project.startup == 'rom')
+        wait(lambda: window.state is not None and not window.busy and window.project.startup == 'rom')
         window.editor.setPlainText('from machine import Pin\np=Pin(25, Pin.OUT)\nwhile True:\n    p.toggle()\n')
         window.build_source()
         wait(lambda: getattr(window, 'python_status', '') == 'execute')
@@ -88,8 +92,10 @@ def gui_pause():
                 'target_100ms_passed': max(samples) < 100,
                 'dropped_events': window.state.dropped_events}
     finally:
+        window._closing = True  # Discard this benchmark's synthetic script and flash state.
         window.close()
         app.processEvents()
+        preferences.cleanup()
 
 
 def main():

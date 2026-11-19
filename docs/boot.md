@@ -40,7 +40,7 @@ application does not download firmware or ROMs while loading a project.
 .venv/bin/rp2040-sim run firmware.uf2 --bootrom /path/to/bootrom-b2.bin
 ```
 
-Use **File → New ROM boot blink**, **New ROM flash test**, or the firmware
+Use **File → Examples → New ROM boot blink**, **New ROM flash test**, or the firmware
 dialog's **RP2040 ROM boot** filter. Projects save `"startup": "rom"`. CLI input
 files ending in `.uf2` or `.bin` select ROM mode when no project/startup override
 is supplied. ELF ROM mode must be explicit; it uses physical flash load

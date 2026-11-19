@@ -11,3 +11,5 @@ __pycache__/
 *.elf
 *.uf2
 *.png
+!docs/images/phase2-desktop.png
+!docs/images/code-editor.png

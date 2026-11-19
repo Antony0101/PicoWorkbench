@@ -5,16 +5,17 @@ import re
 import sys
 
 from PySide6.QtCore import QObject, QThread, QTimer, Qt, Signal, Slot
-from PySide6.QtGui import QAction, QColor, QFont, QSyntaxHighlighter, QTextCharFormat
+from PySide6.QtGui import QAction, QColor, QFont
 from PySide6.QtWidgets import (
-    QApplication, QComboBox, QFileDialog, QHBoxLayout, QHeaderView, QInputDialog,
+    QApplication, QComboBox, QFileDialog, QHBoxLayout, QHeaderView,
     QLabel, QLineEdit, QMainWindow, QPlainTextEdit, QPushButton, QSplitter,
     QTabWidget, QTableWidget, QTableWidgetItem, QToolBar, QVBoxLayout, QWidget, QSlider, QSpinBox,
+    QScrollArea, QCheckBox, QListWidget, QTabBar, QSizePolicy,
 )
 
 from .. import demo
 from ..build import FirmwareBuild, SdkFirmwareBuild
-from ..project import Component, Project
+from ..project import Project
 from ..symbols import Symbols
 from ..engine import Stop
 from .canvas import CircuitScene, CircuitView
@@ -24,6 +25,11 @@ from .pio import PioInspector
 from .dma import DmaInspector
 from .cores import CoresInspector
 from .menus import install_table_menu, popup_menu, text_menu
+from .editor import SourceEditor
+from .editor_pane import EditorPane
+from .document import CircuitHistory, fingerprint
+from .workspace import Workspace
+from .workflow import Workflow
 
 STYLE = """
 QMainWindow, QWidget { background: #111d26; color: #d6e4ec; font-size: 12px; }
@@ -34,12 +40,17 @@ QToolBar { spacing: 8px; border-bottom: 1px solid #2b414f; }
 QToolButton, QPushButton { background: #223c49; border: 1px solid #355361; border-radius: 5px; padding: 7px 12px; }
 QToolButton:hover, QPushButton:hover { background: #315867; }
 QToolButton:disabled, QPushButton:disabled { color: #607685; background: #192c36; }
+QPushButton:focus, QToolButton:focus, QComboBox:focus, QLineEdit:focus { border: 2px solid #84d8ae; }
 QLineEdit, QComboBox, QSpinBox { background: #142630; border: 1px solid #355361; border-radius: 4px; padding: 5px; }
 QPlainTextEdit, QTableWidget { background: #101d25; border: 0; selection-background-color: #275061; }
 QHeaderView::section { background: #1d3440; color: #93adbd; border: 0; padding: 5px; }
 QTabWidget::pane { border: 1px solid #2a414e; }
 QTabBar::tab { background: #182b36; color: #8ca8b9; padding: 9px 17px; }
 QTabBar::tab:selected { color: #68e0b7; background: #203b45; border-bottom: 2px solid #68e0b7; }
+QTabBar#workspaceTabs { background: transparent; }
+QTabBar#workspaceTabs::tab { padding: 7px 12px; border: 1px solid #355361; }
+QTabBar#workspaceTabs::tab:selected { border-bottom: 2px solid #68e0b7; }
+QTabBar#workspaceTabs:focus { border: 1px solid #84d8ae; }
 QSplitter::handle { background: #29414e; height: 4px; width: 4px; }
 QStatusBar { background: #182c36; color: #91acbb; }
 QScrollBar:vertical { background: #182b35; width: 10px; }
@@ -47,21 +58,6 @@ QScrollBar::handle:vertical { background: #3c5968; min-height: 20px; }
 QScrollBar:horizontal { background: #182b35; height: 10px; }
 QScrollBar::handle:horizontal { background: #3c5968; min-width: 20px; }
 """
-
-
-class CHighlighter(QSyntaxHighlighter):
-    def highlightBlock(self, text):
-        for pattern, color in [
-            (r"\b(?:void|int|unsigned|const|volatile|typedef|static|char|if|else|for|while|return)\b", "#82c5fc"),
-            (r"\b(?:0x[0-9a-fA-F]+|\d+)u?\b", "#efc57e"),
-            (r'"[^"\\]*(?:\\.[^"\\]*)*"', "#84d8ae"),
-            (r"//.*$|/\*.*?\*/", "#688998"),
-            (r"^\s*#.*$", "#bd9ee4"),
-        ]:
-            fmt = QTextCharFormat()
-            fmt.setForeground(QColor(color))
-            for match in re.finditer(pattern, text):
-                self.setFormat(match.start(), match.end() - match.start(), fmt)
 
 
 class BuildTask(QObject):
@@ -103,13 +99,14 @@ class BuildTask(QObject):
             self.finished.emit()
 
 
-class Window(QMainWindow):
+class Window(Workflow, Workspace, QMainWindow):
     dispatch = Signal(object)
 
-    def __init__(self, project_path=None):
+    def __init__(self, project_path=None, *, settings=None):
         super().__init__()
         self.setWindowTitle("RP2040 Lab")
-        self.resize(1440, 1000)
+        self.resize(1280, 760)
+        self.settings = settings
         self.project = Project.load(project_path) if project_path else Project.demo()
         self.running = False
         self.playback_speed = 1.0
@@ -118,6 +115,19 @@ class Window(QMainWindow):
         self.breakpoints = set()
         self.build_thread = None
         self.build_task = None
+        self.history = CircuitHistory()
+        self.callbacks = {}
+        self.request_number = 0
+        self.busy = False
+        self.saved_document = None
+        self.applied = fingerprint(self.project, circuit=True) if not project_path else None
+        self.loaded_source = None
+        self.loaded_name = ''
+        self.flash_dirty = False
+        self.discard_flash = False
+        self._loading_document = True
+        self._after_load_run = False
+        self._closing = False
         self.source_path = self.project.resolve(self.project.source) if self.project.source else None
         self._make_ui()
         if self.project.builtin == "pio_blink":
@@ -128,6 +138,10 @@ class Window(QMainWindow):
             self.inspector.setCurrentWidget(self.cores_inspector)
         self.editor.setPlainText(self.project.source_text if self.project.source_text is not None else
                                  self.source_path.read_text() if self.source_path else demo.source(self.project.builtin))
+        self.source_saved = self.editor.toPlainText()
+        self.saved_document = fingerprint(self.project, self.editor.toPlainText())
+        self._loading_document = False
+        self.setup_workspace()
         self.thread = QThread(self)
         self.worker = Worker()
         self.worker.moveToThread(self.thread)
@@ -135,13 +149,15 @@ class Window(QMainWindow):
         self.thread.started.connect(self.worker.initialize)
         self.worker.updated.connect(self.update_state)
         self.worker.failed.connect(self.error)
+        self.worker.acknowledged.connect(self.command_completed)
         self.worker.memory.connect(self.show_memory)
         self.worker.finished.connect(self.thread.quit, Qt.ConnectionType.DirectConnection)
         self.thread.finished.connect(self.worker.deleteLater)
         self.thread.start()
         if project_path:
-            self.send("project", project=deepcopy(self.project))
+            self.request('project', lambda ok: None, project=deepcopy(self.project), source=self.editor.toPlainText())
         self._read_symbols(self.project.resolve(self.project.firmware) if self.project.firmware else None)
+        self.document_changed()
 
     def action(self, title, callback, shortcut=None):
         action = QAction(title, self)
@@ -152,8 +168,10 @@ class Window(QMainWindow):
 
     def _make_ui(self):
         file_menu = self.menuBar().addMenu("File")
+        examples_menu = None
         for title, callback, shortcut in [
-            ("New demo project", self.new_project, "Ctrl+N"),
+            ("New project / examples…", self.choose_example, "Ctrl+N"),
+            ("New demo project", self.new_project, None),
             ("New peripheral workbench", self.new_workbench, None),
             ("New PIO blink demo", self.new_pio_blink, None),
             ("New DMA to PIO demo", self.new_dma_pio, None),
@@ -172,7 +190,35 @@ class Window(QMainWindow):
             ("Export input recording…", self.export_recording, None),
             ("Export flash image…", self.export_flash, None),
         ]:
-            file_menu.addAction(self.action(title, callback, shortcut))
+            if title.startswith('New ') and title != 'New project / examples…':
+                if examples_menu is None:
+                    examples_menu = file_menu.addMenu('Examples')
+                examples_menu.addAction(self.action(title, callback, shortcut))
+            else:
+                file_menu.addAction(self.action(title, callback, shortcut))
+        edit = self.menuBar().addMenu('Edit')
+        self.edit_menu = edit
+        self.undo_action = self.action('Undo circuit', self.undo, 'Ctrl+Z')
+        self.redo_action = self.action('Redo circuit', self.redo, 'Ctrl+Shift+Z')
+        edit.addActions([self.undo_action, self.redo_action,
+                         self.action('Duplicate selected', self.duplicate_selected, 'Ctrl+D')])
+        view_menu = self.menuBar().addMenu('View')
+        self.inspector_action = self.action('Inspector', lambda: None)
+        self.output_action = self.action('Output panel', lambda: None, 'Ctrl+J')
+        self.advanced_action = self.action('Advanced execution controls', lambda: None)
+        for action in (self.inspector_action, self.output_action, self.advanced_action):
+            action.setCheckable(True)
+            view_menu.addAction(action)
+        view_menu.addSeparator()
+        for name in ('Circuit', 'Code', 'Debug'):
+            view_menu.addAction(self.action(name + ' workspace', lambda checked=False, name=name: self.select_workspace(name)))
+        view_menu.addAction(self.action('Reset layout', self.reset_layout))
+        view_menu.addAction(self.action('Larger editor text', lambda: self.set_editor_font(self.editor.font().pointSize() + 1)))
+        view_menu.addAction(self.action('Smaller editor text', lambda: self.set_editor_font(self.editor.font().pointSize() - 1)))
+        help_menu = self.menuBar().addMenu('Help')
+        help_menu.addAction(self.action('Getting started', lambda: self.guide.show()))
+        help_menu.addAction(self.action('ROM and compiler setup…', self.show_setup))
+        help_menu.addAction(self.action('Code assistance setup…', lambda: self.assistance.setup_dialog()))
         toolbar = QToolBar("Simulation", self)
         toolbar.setMovable(False)
         self.addToolBar(toolbar)
@@ -181,7 +227,8 @@ class Window(QMainWindow):
         toolbar.addWidget(brand)
         self.run_action = self.action("▶ Run", lambda: self.send("run"), "F5")
         self.pause_action = self.action("Ⅱ Pause", lambda: self.send("pause"), "F6")
-        self.step_action = self.action("Step next", lambda: self.send("step"), "F10")
+        self.step_action = self.action("Step instruction", lambda: self.send("step"), "F10")
+        self.step_action.setToolTip('One instruction on the next runnable core; peripherals advance. This is not source-line Step Over.')
         self.reset_action = self.action("Reset", lambda: self.send("reset"), "Ctrl+R")
         for action in [self.run_action, self.pause_action, self.step_action, self.reset_action]:
             toolbar.addAction(action)
@@ -191,18 +238,31 @@ class Window(QMainWindow):
         self.cancel_action = self.action("Cancel build", self.cancel_build)
         self.cancel_action.setEnabled(False)
         toolbar.addAction(self.cancel_action)
-        spacer = QWidget()
-        from PySide6.QtWidgets import QSizePolicy
-        spacer.setSizePolicy(QSizePolicy.Policy.Expanding, QSizePolicy.Policy.Preferred)
-        toolbar.addWidget(spacer)
+        self.apply_action = self.action('Apply circuit + Reset', self.apply_circuit)
+        toolbar.addAction(self.apply_action)
+        self.workspace_tabs = QTabBar()
+        self.workspace_tabs.setObjectName('workspaceTabs')
+        self.workspace_tabs.setAccessibleName('Workspace layout')
+        self.workspace_tabs.setFocusPolicy(Qt.FocusPolicy.StrongFocus)
+        self.workspace_tabs.setExpanding(True)
+        self.workspace_tabs.setUsesScrollButtons(False)
+        self.workspace_tabs.setElideMode(Qt.TextElideMode.ElideNone)
+        self.workspace_tabs.setDrawBase(False)
+        self.workspace_tabs.setSizePolicy(QSizePolicy.Policy.Expanding, QSizePolicy.Policy.Preferred)
+        for name, description in [('Circuit', 'Wire components and inspect the circuit'),
+                                  ('Code', 'Edit C or MicroPython source'),
+                                  ('Debug', 'Inspect code, chip state and output together')]:
+            index = self.workspace_tabs.addTab(name)
+            self.workspace_tabs.setTabToolTip(index, description)
+        toolbar.addWidget(self.workspace_tabs)
         self.startup_label = QLabel()
-        toolbar.addWidget(self.startup_label)
 
         self.addToolBarBreak()
         execution = QToolBar("Execution controls", self)
         execution.setMovable(False)
         self.addToolBar(execution)
-        execution.addWidget(QLabel("  Playback "))
+        self.execution_toolbar = execution
+        execution.addWidget(QLabel("  Playback speed "))
         self.speed_combo = QComboBox()
         for speed in (0.01, 0.05, 0.1, 0.25, 0.5, 1.0, 2.0, 4.0):
             self.speed_combo.addItem(f"{speed:g}×", speed)
@@ -211,8 +271,10 @@ class Window(QMainWindow):
         self.speed_combo.currentIndexChanged.connect(
             lambda _: self.send("speed", value=self.speed_combo.currentData()))
         execution.addWidget(self.speed_combo)
-        execution.addSeparator()
-        execution.addWidget(QLabel("CPU clock "))
+        advanced = QWidget()
+        advanced_row = QHBoxLayout(advanced)
+        advanced_row.setContentsMargins(0, 0, 0, 0)
+        advanced_row.addWidget(QLabel("Functional CPU clock "))
         self.clock_spin = QSpinBox()
         self.clock_spin.setRange(1_000, 133_000_000)
         self.clock_spin.setSingleStep(1_000)
@@ -220,21 +282,26 @@ class Window(QMainWindow):
         self.clock_spin.setSuffix(" Hz")
         self.clock_spin.setValue(self.project.clock_hz)
         self.clock_spin.setToolTip("Functional instruction clock. Applying reloads firmware and resets chip state and breakpoints.")
-        execution.addWidget(self.clock_spin)
+        advanced_row.addWidget(self.clock_spin)
         self.clock_button = QPushButton("Apply + Reset")
         self.clock_button.clicked.connect(lambda: self.send("clock", hz=self.clock_spin.value()))
-        execution.addWidget(self.clock_button)
-        execution.addSeparator()
+        advanced_row.addWidget(self.clock_button)
         self.instruction_spin = QSpinBox()
         self.instruction_spin.setRange(1, 1_000_000)
         self.instruction_spin.setGroupSeparatorShown(True)
         self.instruction_spin.setValue(1_000)
         self.instruction_spin.setSuffix(" instructions")
-        execution.addWidget(self.instruction_spin)
+        advanced_row.addWidget(self.instruction_spin)
         self.run_n_button = QPushButton("Run N")
         self.run_n_button.setToolTip("Run at the selected playback speed, then pause after N instructions or at a breakpoint.")
         self.run_n_button.clicked.connect(lambda: self.send("run_instructions", count=self.instruction_spin.value()))
-        execution.addWidget(self.run_n_button)
+        advanced_row.addWidget(self.run_n_button)
+        self.advanced_widget_action = execution.addWidget(advanced)
+        self.advanced_action.toggled.connect(self.advanced_widget_action.setVisible)
+        self.advanced_widget_action.setVisible(False)
+        self.identity_label = QLabel('Initializing…')
+        self.identity_label.setMinimumWidth(0)
+        execution.addWidget(self.identity_label)
 
         self.scene = CircuitScene(self)
         self.scene.set_project(self.project)
@@ -254,6 +321,7 @@ class Window(QMainWindow):
         controls.addWidget(QLabel("  COMPONENTS"))
         self.part_kind = QComboBox()
         self.part_kind.addItems(["led", "button", "probe", "pullup", "pulldown", "i2c_sensor", "spi_loopback"])
+        self.part_kind.setAccessibleName('Component type to add')
         controls.addWidget(self.part_kind)
         self.add_part_button = QPushButton("+ Add")
         self.add_part_button.clicked.connect(self.add_part)
@@ -261,13 +329,23 @@ class Window(QMainWindow):
         fit = QPushButton("Fit canvas")
         fit.clicked.connect(self.view.fit_canvas)
         controls.addWidget(fit)
+        for title, factor in [('−', 1 / 1.15), ('+', 1.15)]:
+            zoom = QPushButton(title)
+            zoom.setAccessibleName('Zoom out' if factor < 1 else 'Zoom in')
+            zoom.clicked.connect(lambda checked=False, factor=factor: self.view.scale(factor, factor))
+            controls.addWidget(zoom)
+        grid = QCheckBox('Snap')
+        grid.toggled.connect(lambda value: setattr(self.scene, 'grid', value))
+        controls.addWidget(grid)
         controls.addStretch()
-        controls.addWidget(QLabel("Green: high   Slate: low   Amber: floating   Red: conflict  "))
+        self.connection_status = QLabel('Logical GPIOs · not Pico header numbers')
+        self.connection_status.setWordWrap(True)
         layout.addLayout(controls)
+        layout.addWidget(self.connection_status)
         layout.addWidget(self.view)
 
         self.inspector = inspector = QTabWidget()
-        inspector.setMinimumWidth(300)
+        inspector.setMinimumWidth(260)
         cpu = QWidget()
         cpu_layout = QVBoxLayout(cpu)
         self.location_label = QLabel("PC · direct-load entry")
@@ -291,6 +369,11 @@ class Window(QMainWindow):
         self.break_list = QLabel("No breakpoints")
         self.break_list.setWordWrap(True)
         cpu_layout.addWidget(self.break_list)
+        self.breakpoint_items = QListWidget()
+        self.breakpoint_items.setMaximumHeight(100)
+        self.breakpoint_items.setAccessibleName('Breakpoints; activate an entry to remove it')
+        self.breakpoint_items.itemActivated.connect(lambda item: self.toggle_address(int(item.data(Qt.ItemDataRole.UserRole))))
+        cpu_layout.addWidget(self.breakpoint_items)
         inspector.addTab(cpu, "CPU0")
         memory = QWidget()
         memory_layout = QVBoxLayout(memory)
@@ -338,6 +421,8 @@ class Window(QMainWindow):
         inspector.addTab(self.dma_inspector, "DMA")
         self.cores_inspector = CoresInspector()
         inspector.addTab(self.cores_inspector, "Cores")
+        self.properties_panel = self.make_properties()
+        inspector.addTab(self.properties_panel, 'Properties')
         limits = QPlainTextEdit()
         limits.setReadOnly(True)
         limits.setPlainText(
@@ -369,17 +454,33 @@ class Window(QMainWindow):
             "The board drawing shows logical chip GPIOs, including pins that have no Pico header connection."
         )
         inspector.addTab(limits, "Support")
-        top = QSplitter(Qt.Orientation.Horizontal)
+        self.top_splitter = top = QSplitter(Qt.Orientation.Horizontal)
         top.addWidget(workspace)
-        top.addWidget(inspector)
+        self.inspector_panel = QWidget()
+        panel_layout = QVBoxLayout(self.inspector_panel)
+        panel_layout.setContentsMargins(0, 0, 0, 0)
+        self.inspector_choice = QComboBox()
+        self.inspector_choice.setAccessibleName('Inspector panel')
+        panel_layout.addWidget(self.inspector_choice)
+        scroll = QScrollArea()
+        scroll.setWidgetResizable(True)
+        scroll.setMinimumSize(270, 100)
+        scroll.setWidget(inspector)
+        panel_layout.addWidget(scroll)
+        top.addWidget(self.inspector_panel)
+        self.inspector_action.toggled.connect(self.inspector_panel.setVisible)
+        self.inspector_action.setChecked(True)
         top.setSizes([1040, 350])
 
         self.tabs = QTabWidget()
-        self.editor = QPlainTextEdit()
+        self.editor = SourceEditor()
         self.editor.setFont(QFont("monospace", 11))
         self.editor.setTabStopDistance(32)
-        self.highlighter = CHighlighter(self.editor.document())
-        self.tabs.addTab(self.editor, "Firmware · C")
+        self.highlighter = self.editor.highlighter
+        self.addAction(self.action('Toggle source breakpoint', lambda: self.source_breakpoint(self.editor.textCursor().blockNumber() + 1), 'F9'))
+        self.editor_pane = EditorPane(self.editor)
+        self.edit_menu.addSeparator()
+        self.edit_menu.addActions(self.editor_pane.actions)
         serial = QWidget()
         serial_layout = QVBoxLayout(serial)
         self.serial = QPlainTextEdit()
@@ -402,6 +503,7 @@ class Window(QMainWindow):
         self.interrupt_button.setEnabled(False)
         self.interrupt_button.clicked.connect(self.interrupt_action.trigger)
         serial_layout.addWidget(self.interrupt_button)
+        self.serial_panel = serial
         self.tabs.addTab(serial, "Serial · UART0")
         self.waveform = Waveform()
         self.tabs.addTab(self.waveform, "Logic analyzer")
@@ -410,11 +512,55 @@ class Window(QMainWindow):
         self.logs.setMaximumBlockCount(5000)
         self.logs.setFont(QFont("monospace", 10))
         self.tabs.addTab(self.logs, "Build + diagnostics")
-        vertical = QSplitter(Qt.Orientation.Vertical)
+        self.vertical = vertical = QSplitter(Qt.Orientation.Vertical)
         vertical.addWidget(top)
-        vertical.addWidget(self.tabs)
+        self.editor_area = QSplitter(Qt.Orientation.Vertical)
+        self.editor_area.addWidget(self.editor_pane)
+        self.editor_area.addWidget(self.tabs)
+        self.editor_area.setSizes([500, 180])
+        vertical.addWidget(self.editor_area)
         vertical.setSizes([650, 300])
-        self.setCentralWidget(vertical)
+        self.output_action.toggled.connect(self.tabs.setVisible)
+        self.output_action.toggled.connect(lambda visible: self.editor_area.setVisible(
+            visible or self.current_workspace != 'Circuit'))
+        self.output_action.setChecked(True)
+        central = QWidget()
+        central_layout = QVBoxLayout(central)
+        central_layout.setContentsMargins(0, 0, 0, 0)
+        self.guide = QWidget()
+        guide_layout = QHBoxLayout(self.guide)
+        guide = QLabel('Start: Run an example → add/wire parts while paused → Apply circuit → Build / Run Python. Playback slows the view.')
+        guide.setWordWrap(True)
+        guide_layout.addWidget(guide)
+        examples = QPushButton('Examples…')
+        examples.setMaximumWidth(120)
+        examples.clicked.connect(self.choose_example)
+        guide_layout.addWidget(examples)
+        dismiss = QPushButton('Dismiss')
+        dismiss.setMaximumWidth(90)
+        dismiss.clicked.connect(self.guide.hide)
+        guide_layout.addWidget(dismiss)
+        central_layout.addWidget(self.guide)
+        self.fault_banner = QLabel()
+        self.fault_banner.setWordWrap(True)
+        self.fault_banner.setTextInteractionFlags(Qt.TextInteractionFlag.TextSelectableByMouse)
+        self.fault_banner.hide()
+        central_layout.addWidget(self.fault_banner)
+        self.recovery = QWidget()
+        recovery_layout = QHBoxLayout(self.recovery)
+        recovery_layout.setContentsMargins(4, 0, 4, 0)
+        for title, callback in [('Details', lambda: self.tabs.setCurrentWidget(self.logs)),
+                                ('ROM / compiler setup', self.show_setup),
+                                ('Export runtime flash…', self.export_flash),
+                                ('Dismiss', lambda: (self.fault_banner.hide(), self.recovery.hide()))]:
+            button = QPushButton(title)
+            button.clicked.connect(callback)
+            recovery_layout.addWidget(button)
+        recovery_layout.addStretch()
+        self.recovery.hide()
+        central_layout.addWidget(self.recovery)
+        central_layout.addWidget(vertical, 1)
+        self.setCentralWidget(central)
         for table in self.findChildren(QTableWidget):
             install_table_menu(table)
         for editor in (self.editor, self.serial, self.logs):
@@ -425,24 +571,55 @@ class Window(QMainWindow):
                     editor.viewport().mapToGlobal(position)))
         self.status = QLabel("Initializing engine…")
         self.statusBar().addWidget(self.status, 1)
+        self.status.setMinimumWidth(0)
+        self.status.setWordWrap(True)
+        self.statusBar().addPermanentWidget(self.startup_label)
         self.project_label = QLabel(self.project.name)
         self.statusBar().addPermanentWidget(self.project_label)
         QTimer.singleShot(100, self.view.fit_canvas)
 
     def output_context_menu(self, editor, position):
-        actions = ([self.build_action, self.cancel_action] if editor is self.editor else
+        actions = ([*self.editor_pane.actions, self.build_action, self.cancel_action] if editor is self.editor else
                    [self.interrupt_action] if editor is self.serial else [])
         return text_menu(editor, position, actions, clear=editor in (self.serial, self.logs))
 
-    def send(self, name, **fields):
-        self.dispatch.emit({"name": name, **fields})
+    # Register slots on the QObject subclass so Qt always dispatches GUI work
+    # on its owning thread, including handlers implemented in Python mixins.
+    @Slot(object)
+    def command_completed(self, result):
+        Workflow.command_completed(self, result)
+
+    @Slot(object)
+    def built(self, result):
+        Workflow.built(self, result)
+
+    @Slot(str)
+    def build_failed(self, message):
+        self.assistance.compiled(message, self.build_text, [self.source_path])
+        self.error(message)
+
+    @Slot()
+    def build_finished(self):
+        Workflow.build_finished(self)
+
+    @Slot(object)
+    def show_memory(self, result):
+        Workflow.show_memory(self, result)
+
+    @Slot(QWidget, QWidget)
+    def editor_focus_changed(self, old, new):
+        self.update_actions()
+
 
     @Slot(object)
     def update_state(self, packet):
         self.state, self.running = packet["state"], packet["running"]
         state = self.state
-        self.project.startup = packet.get("startup", self.project.startup)
-        mode = {"sdk": "SDK ELF · boot2 skipped", "rom": "B2 ROM + boot2", "direct": "direct load"}[self.project.startup]
+        self.applied = packet.get('applied', self.applied)
+        self.loaded_source = packet.get('loaded_source')
+        self.loaded_name = packet.get('loaded_name', '')
+        self.flash_dirty = packet.get('flash_dirty', False)
+        mode = {"sdk": "SDK ELF", "rom": "B2 ROM + boot2", "direct": "direct load"}[packet.get('startup', self.project.startup)]
         self.startup_label.setText(f"2 cores · functional timing · {mode}  ")
         self.playback_speed = packet["speed"]
         previous_python = getattr(self, 'python_status', '')
@@ -453,7 +630,6 @@ class Window(QMainWindow):
         self.interrupt_action.setEnabled(python and state.loaded)
         self.interrupt_button.setEnabled(self.interrupt_action.isEnabled())
         self.build_action.setText('Run Python' if python else 'Build + Load')
-        self.tabs.setTabText(0, 'Python source' if python else 'Firmware · C')
         self.serial_input.setPlaceholderText('MicroPython UART REPL command' if python else 'UART0 input (Enter appends newline)')
         if packet.get("clock_changed"):
             self.project.clock_hz = state.clock_hz
@@ -480,8 +656,12 @@ class Window(QMainWindow):
         self.pio_inspector.display(packet["pio"], state.clock_hz)
         self.dma_inspector.display(packet["dma"])
         self.cores_inspector.display(packet["cores"])
-        for i, value in enumerate(state.registers + (state.xpsr,)):
+        previous_values = getattr(self, 'register_values', ())
+        values = state.registers + (state.xpsr,)
+        for i, value in enumerate(values):
             self.registers.item(i, 1).setText(f"0x{value:08x}")
+            self.registers.item(i, 1).setForeground(QColor('#efc57e' if previous_values and previous_values[i] != value else '#d6e4ec'))
+        self.register_values = values
         for i, (csr, div, cc, top) in enumerate(packet.get("pwm", [])):
             frequency = state.clock_hz * 16 / div / (top + 1) if csr & 1 else 0
             a, b = min(1, (cc & 65535) / (top + 1)), min(1, (cc >> 16) / (top + 1))
@@ -492,7 +672,9 @@ class Window(QMainWindow):
             for column, text in enumerate((f"{frequency:.1f}", f"{100 * a:.1f}", f"{100 * b:.1f}"), 1):
                 self.pwm_table.item(i, column).setText(text)
         location = self.symbols.location(state.registers[15]) if self.symbols else None
-        self.location_label.setText(f"{location.file}:{location.line}" if location else f"PC 0x{state.registers[15]:08x}")
+        mapped = location and self.source_matches(location.file)
+        self.location_label.setText(f"{location.file}:{location.line}" if mapped else f"PC 0x{state.registers[15]:08x} · source unavailable")
+        self.editor.set_execution(location.line if mapped else 0)
         text = "".join(chr(e.value) for e in packet["events"] if e.kind == 2 and e.source == 0)
         if text:
             from PySide6.QtGui import QTextCursor
@@ -507,348 +689,38 @@ class Window(QMainWindow):
                             (f"   ·   {packet['remaining_instructions']:,} instructions remaining"
                              if packet["remaining_instructions"] is not None else "") +
                             (f"   ·   GPIO contention 0x{state.gpio_conflict:08x}" if state.gpio_conflict else ""))
+        self.inspect_port(self.endpoint_choice.currentText())
+        self.update_actions()
 
     @Slot(str)
     def error(self, message):
         self.logs.appendPlainText(message)
+        self.output_action.setChecked(True)
         self.tabs.setCurrentWidget(self.logs)
         self.status.setText("ERROR · " + message)
+        first = message.splitlines()[0] if message else 'Operation failed'
+        self.fault_banner.setText(first[:240] + ' · See Build + diagnostics for details. Help → ROM and compiler setup covers dependencies.')
+        self.fault_banner.show()
+        self.recovery.show()
+        match = re.search(r'(?:editor\.c|firmware\.c):(\d+)(?::\d+)?:', message)
+        if match and getattr(self, 'build_text', None) == self.editor.toPlainText():
+            self.output_action.setChecked(True)
+            self.select_workspace('Code')
+            self.editor.go_to_line(int(match.group(1)))
 
     def _read_symbols(self, path):
         self.symbols = None
-        if path:
+        if self.project.builtin != 'micropython':
             try:
-                self.symbols = Symbols(path.read_bytes())
+                self.symbols = Symbols(path.read_bytes() if path else demo.image(self.project.builtin))
             except Exception as error:
                 self.logs.appendPlainText(f"Debug metadata unavailable: {error}")
 
-    def _change_circuit(self):
-        try:
-            self.project.validate()
-            self.clock_spin.setValue(self.project.clock_hz)
-            self.scene.set_project(self.project)
-            self.breakpoints.clear()
-            self.break_list.setText("No breakpoints")
-            self.send("project", project=deepcopy(self.project))
-            self.project_label.setText(self.project.name)
-        except (ValueError, OSError) as error:
-            self.error(str(error))
-
-    def add_part(self, checked=False, *, kind=None, x=None, y=None):
-        if self.running:
-            return
-        kind = kind or self.part_kind.currentText()
-        ids = {c.id for c in self.project.components}
-        index = 1
-        while kind + str(index) in ids:
-            index += 1
-        self.project.components.append(Component(kind + str(index), kind,
-                                                 650 if x is None else x,
-                                                 110 + 110 * (len(ids) % 5) if y is None else y))
-        self._change_circuit()
-
-    def disconnect_port(self, endpoint):
-        if self.running:
-            return
-        wires = [wire for wire in self.project.wires if endpoint not in wire]
-        if len(wires) != len(self.project.wires):
-            self.project.wires = wires
-            self._change_circuit()
-
-    def add_wire(self, a, b):
-        if self.running or tuple(sorted((a, b))) in {tuple(sorted(w)) for w in self.project.wires}:
-            return
-        self.project.wires.append((a, b))
-        self._change_circuit()
-
-    def move_part(self, key, x, y):
-        if not self.running:
-            for c in self.project.components:
-                if c.id == key:
-                    c.x, c.y = x, y
-
-    def edit_part(self, key):
-        if self.running:
-            return
-        component = next((c for c in self.project.components if c.id == key), None)
-        if component is None:
-            return
-        if component.kind == "i2c_sensor":
-            value, accepted = QInputDialog.getText(self, "I2C sensor", "Device address (hex or decimal)", text=f"0x{component.address:02x}")
-            if accepted:
-                try:
-                    address = int(value, 0)
-                    if not 8 <= address <= 119:
-                        raise ValueError
-                    component.address = address
-                    self._change_circuit()
-                except ValueError:
-                    self.error("I2C address must be between 0x08 and 0x77")
-        else:
-            value, accepted = QInputDialog.getText(self, "Component label", "Label", text=component.label)
-            if accepted:
-                component.label = value[:256]
-                self.scene.set_project(self.project)
-
-    def delete_selected(self):
-        if self.running:
-            return
-        selected = {item.data(0) for item in self.scene.selectedItems()}
-        if not selected:
-            return
-        deleted = {key for key in selected if isinstance(key, str) and not key.startswith("wire:")}
-        wires = {int(key.split(":")[1]) for key in selected if isinstance(key, str) and key.startswith("wire:")}
-        self.project.components = [c for c in self.project.components if c.id not in deleted]
-        self.project.wires = [w for i, w in enumerate(self.project.wires) if i not in wires and
-                              not any(e.split(":")[0] in deleted for e in w)]
-        self._change_circuit()
-
-    def new_project(self):
-        self.send("pause")
-        self.project = Project.demo()
-        self.source_path = None
-        self.editor.setPlainText(demo.source())
-        self.symbols = None
-        self._change_circuit()
-
-    def new_workbench(self):
-        self.send("pause")
-        self.project = Project.workbench()
-        self.source_path = None
-        self.editor.setPlainText(demo.source("workbench"))
-        self.symbols = None
-        self._change_circuit()
-
-    def new_pio_blink(self):
-        self.send("pause")
-        self.project = Project.pio_blink()
-        self.source_path = None
-        self.editor.setPlainText(demo.source("pio_blink"))
-        self.symbols = None
-        self._change_circuit()
-        self.inspector.setCurrentWidget(self.pio_inspector)
-
-    def new_dma_pio(self):
-        self.send("pause")
-        self.project = Project.dma_pio()
-        self.source_path = None
-        self.editor.setPlainText(demo.source("dma_pio"))
-        self.symbols = None
-        self._change_circuit()
-        self.inspector.setCurrentWidget(self.dma_inspector)
-
-    def new_multicore(self):
-        self.send("pause")
-        self.project = Project.multicore()
-        self.source_path = None
-        self.editor.setPlainText(demo.source("multicore"))
-        self.symbols = None
-        self._change_circuit()
-        self.inspector.setCurrentWidget(self.cores_inspector)
-
-    def new_sdk(self, name="sdk_blink"):
-        self.send("pause")
-        self.project = Project.sdk_blink() if name == "sdk_blink" else Project.sdk_uart()
-        self.source_path = None
-        self.editor.setPlainText(demo.source(name))
-        self.symbols = None
-        self._change_circuit()
-
-    def new_rom(self, flash_test=False):
-        self.send("pause")
-        rom = self.project.bootrom
-        rom = str(self.project.resolve(rom)) if rom else ""
-        self.project = Project.rom_flash() if flash_test else Project.rom_blink()
-        self.project.bootrom = rom
-        self.source_path = None
-        self.editor.setPlainText(demo.source(self.project.builtin))
-        self.symbols = None
-        self._change_circuit()
-
-    def select_bootrom(self):
-        name, _ = QFileDialog.getOpenFileName(self, "Select official B2 boot ROM", "", "ROM binary (*.bin)")
-        if name:
-            from ..images import bootrom
-            try:
-                bootrom(Path(name))
-                self.project.bootrom = str(Path(name).resolve())
-                self._change_circuit()
-            except (OSError, ValueError) as error:
-                self.error(str(error))
-
-    def new_micropython(self):
-        self.send('pause')
-        rom = self.project.bootrom
-        rom = str(self.project.resolve(rom)) if rom else ''
-        self.project = Project.micropython()
-        self.project.bootrom = rom
-        self.source_path = None
-        self.editor.setPlainText(demo.source('micropython'))
-        self.symbols = None
-        self._change_circuit()
-
-    def open_project(self):
-        name, _ = QFileDialog.getOpenFileName(self, "Open project", "", "Circuit projects (*.json)")
-        if not name:
-            return
-        try:
-            project = Project.load(Path(name))
-            source = project.resolve(project.source) if project.source else None
-            text = project.source_text if project.source_text is not None else source.read_text() if source else demo.source(project.builtin)
-            self.project, self.source_path = project, source
-            self.editor.setPlainText(text)
-            self._read_symbols(project.resolve(project.firmware) if project.firmware else None)
-            self._change_circuit()
-        except (OSError, ValueError) as error:
-            self.error(str(error))
-
-    def save_project(self):
-        name, _ = QFileDialog.getSaveFileName(self, "Save project", str(self.project.path or "circuit.json"), "Circuit projects (*.json)")
-        if name:
-            try:
-                self.project.source_text = self.editor.toPlainText()
-                self.project.save(Path(name))
-            except (OSError, ValueError) as error:
-                self.error(str(error))
-
-    def open_firmware(self):
-        filters = "Direct-load ARM ELF (*.elf *.axf);;Pico SDK ELF — skip boot2 (*.elf *.axf);;RP2040 ROM boot (*.uf2 *.bin *.elf)"
-        selected = filters.split(";;")[("direct", "sdk", "rom").index(self.project.startup)]
-        name, selected = QFileDialog.getOpenFileName(self, "Load ARM firmware", "", filters, selected)
-        if name:
-            self.project.firmware = str(Path(name).resolve())
-            self._read_symbols(Path(name))
-            startup = "rom" if selected.startswith("RP2040") else "sdk" if selected.startswith("Pico SDK") else "direct"
-            self.send("load", path=Path(name), startup=startup)
-
-    def open_source(self):
-        name, _ = QFileDialog.getOpenFileName(self, "Open source", "", "Source (*.c *.py)")
-        if name:
-            try:
-                self.editor.setPlainText(Path(name).read_text())
-                self.source_path = Path(name).resolve()
-                self.project.source = str(self.source_path)
-            except OSError as error:
-                self.error(str(error))
-
-    def save_source(self):
-        python = self.project.builtin == 'micropython'
-        name, _ = QFileDialog.getSaveFileName(self, "Save source", str(self.source_path or ('main.py' if python else 'firmware.c')), "Python source (*.py)" if python else "C source (*.c)")
-        if name:
-            try:
-                self.source_path = Path(name).resolve()
-                self.source_path.write_text(self.editor.toPlainText())
-                self.project.source = str(self.source_path)
-            except OSError as error:
-                self.error(str(error))
-
-    def build_source(self):
-        if self.project.builtin == 'micropython':
-            self.send('python', source=self.editor.toPlainText())
-            self.tabs.setCurrentWidget(self.serial.parentWidget())
-            return
-        if self.build_thread is not None:
-            return
-        root = (self.project.path.parent if self.project.path else Path.cwd()) / "build"
-        root.mkdir(parents=True, exist_ok=True)
-        linker = self.project.resolve(self.project.linker) if self.project.linker else root / "direct.ld"
-        if not self.project.linker:
-            linker.write_text(demo.linker())
-        # Build a scratch copy so editor changes do not overwrite the user's file.
-        source = root / "editor.c"
-        self.build_task = BuildTask(self.editor.toPlainText(), source, root / "editor.elf", linker, self.project.startup)
-        self.build_thread = QThread(self)
-        self.build_task.moveToThread(self.build_thread)
-        self.build_thread.started.connect(self.build_task.run)
-        self.build_task.done.connect(self.built)
-        self.build_task.failed.connect(self.error)
-        self.build_task.finished.connect(self.build_thread.quit, Qt.ConnectionType.DirectConnection)
-        self.build_thread.finished.connect(self.build_task.deleteLater)
-        self.build_thread.finished.connect(self.build_finished)
-        self.build_action.setEnabled(False)
-        self.cancel_action.setEnabled(True)
-        self.logs.appendPlainText("Building Pico SDK 2.2.0 firmware…" if self.project.startup in ("sdk", "rom") else "Building freestanding Cortex-M0+ firmware…")
-        self.build_thread.start()
-
-    @Slot(object)
-    def built(self, result):
-        path, log, startup = result
-        self.logs.appendPlainText(log + f"Built {path}")
-        self.project.firmware = str(path.resolve())
-        self.project.startup = startup
-        self._read_symbols(path)
-        self.send("load", path=path, startup=startup)
-
-    @Slot()
-    def build_finished(self):
-        # finished() precedes deferred worker deletion; keep Python references
-        # alive until that cleanup has completed in the owning thread.
-        self.build_thread.wait()
-        self.build_thread.deleteLater()
-        self.build_thread = self.build_task = None
-        self.build_action.setEnabled(True)
-        self.cancel_action.setEnabled(False)
-
-    def cancel_build(self):
-        if self.build_task:
-            self.build_task.cancel()
-
-    def export_flash(self):
-        name, _ = QFileDialog.getSaveFileName(self, 'Export flash image', 'flash.bin', 'Flash binary (*.bin)')
-        if name:
-            self.send('save_flash', path=Path(name))
-
-    def send_serial(self):
-        self.send("uart", data=(self.serial_input.text() + "\n").encode())
-        self.serial_input.clear()
-
-    def read_memory(self):
-        try:
-            address = int(self.memory_address.text(), 0)
-            length = 128 if 0x10000000 <= address < 0x10200000 or 0x20000000 <= address < 0x20042000 else 4
-            self.send("memory", address=address, length=length)
-        except ValueError:
-            self.error("Enter a hexadecimal or decimal memory address")
-
-    @Slot(object)
-    def show_memory(self, result):
-        address, data = result
-        self.memory_text.setPlainText("\n".join(
-            f"{address + i:08x}  " + " ".join(f"{b:02x}" for b in data[i:i + 16])
-            for i in range(0, len(data), 16)))
-
-    def toggle_breakpoint(self):
-        try:
-            text = self.break_address.text().strip()
-            address = self.symbols.names[text] if self.symbols and text in self.symbols.names else int(text, 0)
-            if not 0 <= address <= 0xffffffff or address & 1:
-                raise ValueError
-            enabled = address not in self.breakpoints
-            if enabled:
-                self.breakpoints.add(address)
-            else:
-                self.breakpoints.remove(address)
-            self.send("breakpoint", address=address, enabled=enabled)
-            self.break_list.setText(", ".join(f"0x{a:08x}" for a in sorted(self.breakpoints)) or "No breakpoints")
-        except ValueError:
-            self.error("Enter an even instruction address or a known ELF function name")
 
     def export_recording(self):
         name, _ = QFileDialog.getSaveFileName(self, "Export input recording", "inputs.json", "JSON (*.json)")
         if name:
             self.send("recording", path=Path(name))
-
-    def closeEvent(self, event):
-        self.cancel_build()
-        self.send("shutdown")
-        if not self.thread.wait(5000):
-            self.error("Waiting for the simulation worker to stop")
-            event.ignore()
-            return
-        if self.build_thread is not None and not self.build_thread.wait(5000):
-            event.ignore()
-            return
-        event.accept()
 
 
 def _configure_wslg_display():
@@ -875,17 +747,29 @@ def launch(project_path=None, screenshot=None):
     app.setApplicationName("RP2040 Lab")
     app.setStyle("Fusion")
     app.setStyleSheet(STYLE)
-    window = Window(project_path)
+    preferences = None
+    settings = None
+    if screenshot:
+        from tempfile import TemporaryDirectory
+        from PySide6.QtCore import QSettings
+        preferences = TemporaryDirectory(prefix='rp2040-screenshot-')
+        settings = QSettings(str(Path(preferences.name) / 'settings.ini'), QSettings.Format.IniFormat)
+    window = Window(project_path, settings=settings)
     window.show()
     if screenshot:
         QTimer.singleShot(200, lambda: window.send("run"))
 
         def capture():
+            window.output_action.setChecked(True)
             window.tabs.setCurrentWidget(window.waveform)
             app.processEvents()
             screenshot.parent.mkdir(parents=True, exist_ok=True)
             window.grab().save(str(screenshot))
+            window._closing = True  # Automated capture owns no interactive edits to save.
             window.close()
 
         QTimer.singleShot(1800, capture)
-    return app.exec()
+    result = app.exec()
+    if preferences:
+        preferences.cleanup()
+    return result

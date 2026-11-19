@@ -8,7 +8,7 @@ a complete hardware conformance or cycle-accuracy claim.
 
 ## Running the example
 
-Open **File → New PIO blink demo**, or launch:
+Open **File → Examples → New PIO blink demo**, or launch:
 
 ```sh
 .venv/bin/rp2040-sim gui --project examples/pio_blink.json

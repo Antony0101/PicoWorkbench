@@ -9,7 +9,7 @@ hardware conformance claim.
 
 ## Run the example
 
-Open **File → New DMA to PIO demo**, then press **F5**, or run:
+Open **File → Examples → New DMA to PIO demo**, then press **F5**, or run:
 
 ```sh
 .venv/bin/rp2040-sim gui --project examples/dma_pio.json

@@ -23,10 +23,16 @@ def compiler() -> str:
     raise RuntimeError("Install arm-none-eabi-gcc or set ARM_CC to its executable path")
 
 
-def build_command(source: Path, output: Path, linker: Path) -> list[str]:
-    return [compiler(), "-mcpu=cortex-m0plus", "-mthumb", "-std=c11", "-O1", "-g3",
+def compile_flags() -> list[str]:
+    """The same target and language settings drive builds and editor analysis."""
+    return ["-mcpu=cortex-m0plus", "-mthumb", "-std=c11", "-O1", "-g3",
             "-ffreestanding", "-fno-builtin", "-fno-unwind-tables", "-nostdlib",
-            "-Wall", "-Wextra", "-Werror", "-Wl,--build-id=none",
+            "-Wall", "-Wextra", "-Werror"]
+
+
+def build_command(source: Path, output: Path, linker: Path) -> list[str]:
+    return [compiler(), *compile_flags(), "-fdiagnostics-color=never", "-fdiagnostics-column-unit=byte",
+            "-Wl,--build-id=none",
             "-T", str(linker.resolve()), str(source.resolve()), "-o", str(output.resolve())]
 
 

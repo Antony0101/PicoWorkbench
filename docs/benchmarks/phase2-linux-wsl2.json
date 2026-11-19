@@ -1,0 +1,42 @@
+{
+  "platform": "Linux-5.15.167.4-microsoft-standard-WSL2-x86_64-with-glibc2.39",
+  "python": "3.12.3",
+  "machine": "x86_64",
+  "processor": "x86_64",
+  "headless": [
+    {
+      "workload": "busy Thumb loop",
+      "instructions": 1000000,
+      "wall_seconds": 0.3032498009997653,
+      "instructions_per_second": 3297611.39728093
+    },
+    {
+      "workload": "workbench",
+      "instructions": 1000000,
+      "wall_seconds": 0.33023130500805564,
+      "events": 2159,
+      "dropped_events": 0
+    },
+    {
+      "workload": "micropython",
+      "instructions": 393487,
+      "wall_seconds": 0.1680253999948036,
+      "events": 120,
+      "dropped_events": 0
+    }
+  ],
+  "gui": {
+    "workload": "MicroPython Pin.toggle loop, trace and inspectors enabled",
+    "pause_ms": [
+      36.75410301366355,
+      13.573878008173779,
+      70.46484500460792,
+      41.0559409938287,
+      62.1818959916709
+    ],
+    "max_pause_ms": 70.46484500460792,
+    "target_100ms_passed": true,
+    "dropped_events": 0
+  },
+  "peak_rss_mib": 111.05859375
+}

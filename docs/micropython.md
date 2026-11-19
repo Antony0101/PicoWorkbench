@@ -17,7 +17,7 @@ the bundled interpreter:
     --script firmware/micropython/blink.py --duration-ms 2000
 ```
 
-Choose **File → New MicroPython project**. Edit the Python source and press
+Choose **File → Examples → New MicroPython project**. Edit the Python source and press
 **F7 / Run Python**. The worker starts the interpreter, uploads source through
 its UART raw REPL, runs it, returns to the friendly prompt and pauses. Output,
 including Python tracebacks, appears in **Serial · UART0**. Single REPL commands

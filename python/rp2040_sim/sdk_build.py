@@ -29,7 +29,9 @@ def cmake_command() -> list[str]:
 
 
 def main():
-    source, output, sdk, toolchain = map(Path, sys.argv[1:])
+    configure_only = '--configure-only' in sys.argv
+    arguments = [a for a in sys.argv[1:] if a != '--configure-only']
+    source, output, sdk, toolchain = map(Path, arguments)
     project = output.parent / "sdk-editor"
     project.mkdir(parents=True, exist_ok=True)
     shutil.copyfile(source, project / "editor.c")
@@ -37,7 +39,10 @@ def main():
     command = cmake_command()
     subprocess.run(command + ["-S", str(project), "-B", str(project / "out"),
                    f"-DPICO_SDK_PATH={sdk}", f"-DPICO_TOOLCHAIN_PATH={toolchain}",
-                   "-DPICO_BOARD=pico", "-DPICO_NO_PICOTOOL=1", "-DCMAKE_BUILD_TYPE=Release"], check=True)
+                   "-DPICO_BOARD=pico", "-DPICO_NO_PICOTOOL=1", "-DCMAKE_BUILD_TYPE=Release",
+                   "-DCMAKE_EXPORT_COMPILE_COMMANDS=ON"], check=True)
+    if configure_only:
+        return
     subprocess.run(command + ["--build", str(project / "out"), "--parallel", "4"], check=True)
     shutil.copyfile(project / "out/editor.elf", output)
 

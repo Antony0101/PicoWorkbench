@@ -10,6 +10,7 @@ recursive-include firmware *.h *.cmake *.py *.csv *.md
 recursive-include python/rp2040_sim/assets *
 recursive-include docs *.md
 recursive-include docs *.json
+recursive-include docs *.png
 recursive-include plan *.md
 recursive-include tools *.py
 recursive-include examples *.json

@@ -5,7 +5,7 @@ PySide6 GUI. Load real ARM ELF firmware, run or step it, inspect registers and
 memory, wire digital components, and watch UART output and GPIO waveforms.
 
 This is a working first release of [Phase 1](plan/phase-1/README.md).
-[Phase 2](plan/phase-2/README.md) plans desktop UI/UX improvements; see the
+[Phase 2](plan/phase-2/README.md) adds desktop UI/UX improvements; see the
 [development phases](plan/README.md) for both plans and their status.
 Real B2 ROM boot, UF2 loading and a pinned MicroPython UART profile are supported.
 USB transfers and additional OS/hardware validation remain outside the delivered scope.
@@ -22,16 +22,16 @@ compiler have been prepared:
 ```
 
 Press **Run**, then hold the button to change the LED's blink rate. Open
-**File → New peripheral workbench** for the integrated I2C sensor, SPI loopback,
-PWM LED, and ADC demonstration. **File → New PIO blink demo** runs a PIO-driven
-LED while the CPU sleeps. **File → New DMA to PIO demo** feeds a PIO waveform
+**File → Examples → New peripheral workbench** for the integrated I2C sensor, SPI loopback,
+PWM LED, and ADC demonstration. **File → Examples → New PIO blink demo** runs a PIO-driven
+LED while the CPU sleeps. **File → Examples → New DMA to PIO demo** feeds a PIO waveform
 through DMA and reports its completion interrupt. The included demos run without
-compiling firmware. **File → New two-core demo** demonstrates shared SRAM,
+compiling firmware. **File → Examples → New two-core demo** demonstrates shared SRAM,
 spinlocks and FIFO interrupts.
-**File → New Pico SDK blink** and **New Pico SDK UART** run genuine SDK 2.2.0
+**File → Examples → New Pico SDK blink** and **New Pico SDK UART** run genuine SDK 2.2.0
 C startup and runtime code using the supported SDK ELF shortcut.
-**File → New ROM boot blink** executes the B2 ROM and boot2.
-**File → New MicroPython project** opens a Python editor and UART REPL; press
+**File → Examples → New ROM boot blink** executes the B2 ROM and boot2.
+**File → Examples → New MicroPython project** opens a Python editor and UART REPL; press
 **F7 / Run Python** to execute the source. These use the locally prepared B2 ROM.
 
 Right-click the circuit background to add a component at that location. Component
@@ -40,6 +40,23 @@ circuit menu also offers Run/Pause/Step/Reset and canvas fitting. Circuit edits
 are available while paused. Right-click inspection tables to copy values or a
 table, the editor to build/run, serial or diagnostic output to copy/clear it,
 and the logic analyzer to zoom or clear its displayed trace.
+
+Use the **Circuit / Code / Debug** workspace tabs to focus the layout. Circuit
+gives the canvas the available height; Code expands the editor. View restores
+hidden panels and exposes Advanced execution controls. Circuit edits have undo/redo
+and stay pending until **Apply circuit + Reset** or **Apply + Run**. Edited C source
+shows when rebuilding is required; Python source shows its upload state.
+
+The [code editor](docs/editor.md) adds automatic indentation, bracket pairing,
+find/replace, completion, documentation, definitions and a Problems panel.
+Code mode uses the central area, with UART/build output below. Optional local
+clangd/Pyright services provide C and MicroPython intelligence; **Code assistance…**
+provides setup and path selection.
+
+Projects embed the source buffer. Saving a source file and exporting runtime
+flash are separate actions. Closing or replacing unsaved work offers Save,
+Discard or Cancel. See the [desktop workflow](docs/desktop.md) for shortcuts,
+properties, trace measurements and supported limits.
 
 ## Install on Linux
 

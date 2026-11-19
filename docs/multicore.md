@@ -7,7 +7,7 @@ This is functional simulation with a deterministic instruction schedule.
 
 ## Running the example
 
-Open **File → New two-core demo** and press **F5**, or run:
+Open **File → Examples → New two-core demo** and press **F5**, or run:
 
 ```sh
 .venv/bin/rp2040-sim gui --project examples/multicore.json

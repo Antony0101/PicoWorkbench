@@ -1,0 +1,33 @@
+{
+  "platform": "Linux-5.15.167.4-microsoft-standard-WSL2-x86_64-with-glibc2.39",
+  "qt_platform": "wayland",
+  "scale": 1.0,
+  "checks": {
+    "laptop_and_advanced_controls": true,
+    "presentation_preserves_document_and_chip": true,
+    "keyboard_property_edit_and_undo": true,
+    "keyboard_context_targets_selection": true,
+    "standard_widget_accessibility_interfaces": true,
+    "wire_preview_and_escape": true,
+    "font_preferences": true
+  },
+  "source_sha256": "3af1ff9aeb74382726b826714c5b968f4e1afed5feefb340e6c25a8f45c72b00",
+  "requested_size": [
+    1366,
+    768
+  ],
+  "actual_size": [
+    1366,
+    768
+  ],
+  "minimum_size": [
+    791,
+    345
+  ],
+  "accessible_names": {
+    "source": "Source code editor",
+    "component": "led1",
+    "port": "Select port\u2026",
+    "net": "Selected net endpoints and logic state"
+  }
+}

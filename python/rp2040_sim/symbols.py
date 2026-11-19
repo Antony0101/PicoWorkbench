@@ -17,6 +17,7 @@ class Symbols:
     def __init__(self, data: bytes):
         self.names: dict[str, int] = {}
         self.lines: list[Location] = []
+        self._ranges = []
         elf = ELFFile(BytesIO(data))
         for section in elf.iter_sections():
             if section.header.sh_type == "SHT_SYMTAB":
@@ -29,10 +30,18 @@ class Symbols:
                 table = dwarf.line_program_for_CU(cu)
                 if table is None:
                     continue
+                sequence_start = None
                 for entry in table.get_entries():
                     state = entry.state
-                    if state is None or state.end_sequence:
+                    if state is None:
                         continue
+                    if state.end_sequence:
+                        if sequence_start is not None:
+                            self._ranges.append((sequence_start, state.address))
+                        sequence_start = None
+                        continue
+                    if sequence_start is None:
+                        sequence_start = state.address
                     index = state.file - (0 if table.header.version >= 5 else 1)
                     entries = table.header.file_entry
                     if 0 <= index < len(entries):
@@ -42,5 +51,7 @@ class Symbols:
         self._addresses = [e.address for e in self.lines]
 
     def location(self, pc: int) -> Location | None:
+        if not any(start <= pc < end for start, end in self._ranges):
+            return None
         index = bisect_right(self._addresses, pc) - 1
         return self.lines[index] if index >= 0 else None

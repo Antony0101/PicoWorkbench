@@ -1,6 +1,7 @@
 # Phase 2: desktop UI and UX
 
-Status: planned. This phase turns the delivered simulator into a clearer,
+Status: Linux implementation delivered; participant usability and screen-reader
+validation remain open. This phase turns the simulator into a clearer,
 comfortable desktop workflow for learning, wiring and firmware debugging.
 It follows the interface review and research recorded in [research.md](research.md).
 

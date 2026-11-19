@@ -111,6 +111,8 @@ class Project:
         project.name = 'MicroPython 1.26.1 · UART REPL'
         project.builtin = 'micropython'
         project.clock_hz = 10_000_000
+        project.components[0].label = 'Python GPIO25 output'
+        project.components[1].label = 'GPIO25 Python waveform'
         return project
 
     def resolve(self, value: str) -> Path:

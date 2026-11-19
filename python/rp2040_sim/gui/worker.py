@@ -1,5 +1,6 @@
 from copy import deepcopy
 import math
+import hashlib
 from time import monotonic_ns
 
 from PySide6.QtCore import QObject, QTimer, Signal, Slot
@@ -8,6 +9,7 @@ from ..controller import Simulation
 from ..engine import Stop
 from .. import demo
 from ..repl import PythonTransfer
+from .document import fingerprint, validate_circuit
 
 
 class Worker(QObject):
@@ -15,6 +17,7 @@ class Worker(QObject):
     failed = Signal(str)
     memory = Signal(object)
     finished = Signal()
+    acknowledged = Signal(object)
 
     def __init__(self, wall_clock=monotonic_ns):
         super().__init__()
@@ -29,12 +32,20 @@ class Worker(QObject):
         self.python_transfer = None
         self.uart_tail = b''
         self.python_interrupt_pending = False
+        self.loaded_source = demo.source()
+        self.loaded_name = 'blink'
+        self.flash_baseline = None
+        self.exported_flash = None
+        self.flash_dirty = False
+        self.frames = 0
+        self.upload_source = None
 
     def rebase_playback(self):
         self._wall_ns = self.wall_clock()
         self._target_ns = self.sim.engine.snapshot().time_ns
 
     def replace_simulation(self, project, image):
+        validate_circuit(project)
         replacement = Simulation(project)
         try:
             replacement.load(image)
@@ -49,6 +60,7 @@ class Worker(QObject):
         try:
             self.sim = Simulation()
             self.sim.load(demo.image())
+            self.flash_baseline = self.flash_hash()
             self.timer = QTimer(self)
             self.timer.setInterval(16)
             self.timer.timeout.connect(self.tick)
@@ -64,14 +76,20 @@ class Worker(QObject):
                 self.uart_tail = b''
                 self.python_interrupt_pending = False
             state = self.sim.engine.snapshot()
+            self.frames += 1
             events = self.sim.engine.events()
             self.uart_tail = (self.uart_tail + bytes(e.value for e in events if e.kind == 2 and e.source == 0))[-512:]
             if self.python_transfer:
                 self.python_transfer.consume(self.sim, events)
+                if self.python_transfer.phase in ('execute', 'exit') or self.python_transfer.done:
+                    self.loaded_source = self.upload_source
                 if self.python_transfer.done:
                     self.running = False
                 if self.python_interrupt_pending and not self.python_transfer.scheduled:
                     self._interrupt_python()
+            if self.flash_baseline and (not self.running or self.frames % 60 == 0):
+                current = self.flash_hash()
+                self.flash_dirty = current != self.flash_baseline and current != self.exported_flash
             self.updated.emit({"state": state, "events": events,
                                "pins": dict(self.sim.pin_for_component), "running": self.running,
                                "reset": reset, "devices": {k: v.summary() for k, v in self.sim.devices.items()},
@@ -80,6 +98,9 @@ class Worker(QObject):
                                "dma": self.sim.engine.dma(),
                                "cores": self.sim.engine.cores(),
                                "startup": self.sim.project.startup,
+                               "applied": fingerprint(self.sim.project, circuit=True),
+                               "loaded_source": self.loaded_source, "loaded_name": self.loaded_name,
+                               "flash_dirty": self.flash_dirty,
                                "python_status": ("error" if self.python_transfer.stderr else "finished") if self.python_transfer and self.python_transfer.done else
                                                 self.python_transfer.phase if self.python_transfer else "",
                                "speed": self.speed,
@@ -175,13 +196,38 @@ class Worker(QObject):
             elif name == "load":
                 self.running = False
                 self.remaining_instructions = None
-                self.sim.load(message["path"], startup=message.get("startup"))
+                self.check_flash_replacement(message)
+                project = deepcopy(self.sim.project)
+                project.startup = message.get('startup', project.startup)
+                project.firmware = str(message['path'])
+                self.replace_simulation(project, message['path'])
+                self.loaded_source = message.get('source')
+                self.loaded_name = str(message['path'])
+                self.flash_baseline = self.flash_hash()
+                self.exported_flash = None
                 reset = True
             elif name == "project":
                 self.running = False
                 self.remaining_instructions = None
                 project = deepcopy(message["project"])
-                self.replace_simulation(project, project.resolve(project.firmware) if project.firmware else demo.image(project.builtin))
+                preserve = message.get('preserve', False)
+                if preserve:
+                    if project.startup == 'rom':
+                        image = self.sim.engine.flash_image()
+                    else:
+                        if self.flash_baseline and self.flash_hash() != self.flash_baseline and not message.get('discard_flash'):
+                            raise ValueError('Modified SDK flash cannot be reapplied automatically. Export flash, then explicitly discard it before applying.')
+                        image = self.sim.image
+                else:
+                    self.check_flash_replacement(message)
+                    image = project.resolve(project.firmware) if project.firmware else demo.image(project.builtin)
+                self.replace_simulation(project, image)
+                if not preserve:
+                    self.loaded_source = (None if project.builtin == 'micropython' else
+                        message.get('source', demo.source(project.builtin) if not project.firmware else None))
+                    self.loaded_name = project.firmware or project.builtin
+                    self.flash_baseline = self.flash_hash()
+                    self.exported_flash = None
                 reset = True
             elif name == "clock":
                 self.running = False
@@ -189,7 +235,10 @@ class Worker(QObject):
                 project = deepcopy(self.sim.project)
                 project.clock_hz = message["hz"]
                 # Reload the exact current image, including unsaved scratch builds.
-                self.replace_simulation(project, self.sim.image)
+                image = self.sim.engine.flash_image() if project.startup == 'rom' else self.sim.image
+                if project.startup != 'rom':
+                    self.check_flash_replacement(message)
+                self.replace_simulation(project, image)
                 reset = clock_changed = True
             elif name == "button":
                 self.sim.button(message["id"], message["pressed"])
@@ -201,6 +250,7 @@ class Worker(QObject):
                 if self.python_transfer and not self.python_transfer.done:
                     raise RuntimeError("A Python upload/program is already active")
                 self.python_transfer = PythonTransfer(message["source"], ready=self.uart_tail.endswith(b'>>> '))
+                self.upload_source = message['source']
                 self.running = True
                 self.remaining_instructions = None
                 self.rebase_playback()
@@ -223,14 +273,29 @@ class Worker(QObject):
                 self.sim.export_recording(message["path"])
             elif name == "save_flash":
                 message['path'].write_bytes(self.sim.engine.flash_image())
+                self.exported_flash = self.flash_hash()
+            elif name == 'inspect_flash':
+                pass
             else:
                 raise ValueError(f"Unknown controller command: {name}")
             self.publish(reset=reset, clock_changed=clock_changed)
+            if 'request' in message:
+                self.acknowledged.emit({'request': message['request'], 'ok': True, 'name': name})
         except Exception as error:
             self.running = False
             self.remaining_instructions = None
             self.publish()
             self.failed.emit(str(error))
+            if 'request' in message:
+                self.acknowledged.emit({'request': message['request'], 'ok': False, 'error': str(error)})
+
+    def flash_hash(self):
+        return hashlib.sha256(self.sim.engine.flash_image()).digest()
+
+    def check_flash_replacement(self, message):
+        if (self.flash_baseline and not message.get('discard_flash') and
+                self.flash_hash() not in (self.flash_baseline, self.exported_flash)):
+            raise ValueError('Modified runtime flash would be lost. Export flash or explicitly discard runtime changes before replacing firmware.')
 
     def _interrupt_python(self):
         self.python_transfer = None

@@ -6,9 +6,9 @@ import pytest
 os.environ.setdefault("QT_QPA_PLATFORM", "offscreen")
 pytest.importorskip("PySide6")
 from PySide6.QtTest import QTest
-from PySide6.QtCore import QPoint, QPointF, Qt
+from PySide6.QtCore import QPoint, QPointF, Qt, QSettings
 from PySide6.QtGui import QContextMenuEvent
-from PySide6.QtWidgets import QApplication
+from PySide6.QtWidgets import QApplication, QMessageBox
 
 from rp2040_sim.gui.app import Window
 
@@ -16,6 +16,18 @@ from rp2040_sim.gui.app import Window
 @pytest.fixture(scope="module")
 def app():
     return QApplication.instance() or QApplication([])
+
+
+@pytest.fixture(autouse=True)
+def gui_environment(app, tmp_path, monkeypatch):
+    QSettings.setPath(QSettings.Format.NativeFormat, QSettings.Scope.UserScope, str(tmp_path))
+    monkeypatch.setattr(QMessageBox, 'warning', lambda *a, **kw: QMessageBox.StandardButton.Discard)
+    yield
+    for window in app.topLevelWidgets():
+        if isinstance(window, Window):
+            window._closing = True
+            window.close()
+            app.processEvents()
 
 
 def wait_for(app, condition, timeout=5):
@@ -68,6 +80,7 @@ def test_gui_context_clicks_do_not_wire_or_press_buttons(app):
         assert scene.pending is None
     finally:
         window.close()
+        wait_for(app, lambda: not window.thread.isRunning())
         app.processEvents()
 
 
@@ -91,7 +104,7 @@ def test_gui_context_add_edit_delete_and_disconnect(app, monkeypatch):
         part = scene.parts['led2']
         menu = view.context_menu(view.mapFromScene(part.mapToScene(QPointF(60, 20))))
         menu_action(menu, 'Edit label…').trigger()
-        assert component.label == 'Status LED'
+        assert next(c for c in window.project.components if c.id == 'led2').label == 'Status LED'
 
         # Right-clicking a different object must not delete the old selection.
         scene.parts['led2'].setSelected(True)
@@ -113,6 +126,7 @@ def test_gui_context_add_edit_delete_and_disconnect(app, monkeypatch):
         assert ('led2:signal', 'pico:GP0') in window.project.wires
     finally:
         window.close()
+        wait_for(app, lambda: not window.thread.isRunning())
         app.processEvents()
 
 
@@ -145,6 +159,7 @@ def test_gui_context_menus_follow_execution_state(app):
         assert menu_action(menu, 'Edit label…').isEnabled()
     finally:
         window.close()
+        wait_for(app, lambda: not window.thread.isRunning())
         app.processEvents()
 
 
@@ -192,6 +207,7 @@ def test_gui_context_copy_editor_output_and_waveform(app):
         assert window.state.instructions == instructions
     finally:
         window.close()
+        wait_for(app, lambda: not window.thread.isRunning())
         app.processEvents()
 
 
@@ -220,6 +236,7 @@ def test_gui_execution_inspection_and_shutdown(app, tmp_path):
         assert (tmp_path / "gui.png").stat().st_size > 1000
     finally:
         window.close()
+        wait_for(app, lambda: not window.thread.isRunning())
         app.processEvents()
         assert not window.thread.isRunning()
 
@@ -252,13 +269,16 @@ def test_gui_sdk_workloads_loading_inspection_and_reset(app, tmp_path, monkeypat
         window.send('run')
         wait_for(app, lambda: 'Pico SDK UART ready' in window.serial.toPlainText())
         window.new_sdk()
-        wait_for(app, lambda: window.state.instructions == 0 and window.project.startup == 'sdk')
+        wait_for(app, lambda: not window.busy and window.state.instructions == 0
+                 and window.project.startup == 'sdk' and window.project.builtin == 'sdk_blink')
         assert window.project.builtin == 'sdk_blink'
         window.new_project()
-        wait_for(app, lambda: 'direct load' in window.startup_label.text())
+        wait_for(app, lambda: not window.busy and window.project.startup == 'direct'
+                 and 'direct load' in window.startup_label.text())
         assert window.project.startup == 'direct'
     finally:
         window.close()
+        wait_for(app, lambda: not window.thread.isRunning())
         app.processEvents()
 
 
@@ -285,6 +305,7 @@ def test_gui_rom_boot_and_flash_demo(app):
         wait_for(app, lambda: window.state.instructions == 0)
     finally:
         window.close()
+        wait_for(app, lambda: not window.thread.isRunning())
         app.processEvents()
 
 
@@ -299,6 +320,7 @@ def test_gui_micropython_editor_execution_and_interrupt(app):
         window.show()
         wait_for(app, lambda: window.state is not None)
         window.new_micropython()
+        wait_for(app, lambda: window.project.builtin == 'micropython' and not window.busy)
         window.editor.setPlainText('from machine import Pin\nPin(25, Pin.OUT).value(1)\nprint("GUI Python executed")\n')
         window.build_source()
         wait_for(app, lambda: getattr(window, 'python_status', '') == 'finished', timeout=10)
@@ -306,7 +328,7 @@ def test_gui_micropython_editor_execution_and_interrupt(app):
         assert window.state.pin(25).name == 'HIGH'
         assert not window.running
         assert window.build_action.text() == 'Run Python'
-        assert window.tabs.tabText(0) == 'Python source'
+        assert window.editor_pane.title.text().endswith('MicroPython')
         window.editor.setPlainText('while True:\n    pass\n')
         window.build_source()
         wait_for(app, lambda: window.python_status == 'execute')
@@ -318,6 +340,7 @@ def test_gui_micropython_editor_execution_and_interrupt(app):
         wait_for(app, lambda: window.state.instructions == 0)
     finally:
         window.close()
+        wait_for(app, lambda: not window.thread.isRunning())
         app.processEvents()
 
 
@@ -340,6 +363,7 @@ def test_gui_circuit_edits_and_compiler_failure(app):
         assert "error" in window.logs.toPlainText().lower() or "Install arm-none-eabi-gcc" in window.logs.toPlainText()
     finally:
         window.close()
+        wait_for(app, lambda: not window.thread.isRunning())
         app.processEvents()
 
 
@@ -353,6 +377,7 @@ def test_gui_execution_controls_and_saved_clock(app, tmp_path, monkeypatch):
         wait_for(app, lambda: window.state is not None)
         window.speed_combo.setCurrentIndex(window.speed_combo.findData(0.1))
         wait_for(app, lambda: window.playback_speed == 0.1)
+        window.advanced_action.setChecked(True)
         window.clock_spin.setValue(100_000)
         window.clock_button.click()
         wait_for(app, lambda: window.state.clock_hz == 100_000)
@@ -370,6 +395,7 @@ def test_gui_execution_controls_and_saved_clock(app, tmp_path, monkeypatch):
         assert Project.load(destination).clock_hz == 100_000
     finally:
         window.close()
+        wait_for(app, lambda: not window.thread.isRunning())
         app.processEvents()
 
 
@@ -398,6 +424,7 @@ def test_gui_pio_demo_inspection_and_reset(app):
         assert not view.snapshots[0].sm[0].enabled
     finally:
         window.close()
+        wait_for(app, lambda: not window.thread.isRunning())
         app.processEvents()
 
 
@@ -436,6 +463,7 @@ def test_gui_dma_demo_inspection_completion_and_reset(app):
         assert view.channels.item(0, 1).text() == 'Idle'
     finally:
         window.close()
+        wait_for(app, lambda: not window.thread.isRunning())
         app.processEvents()
         assert not window.thread.isRunning()
 
@@ -471,5 +499,6 @@ def test_gui_multicore_launch_inspection_step_and_reset(app):
         assert view.snapshot.spinlocks == 0
     finally:
         window.close()
+        wait_for(app, lambda: not window.thread.isRunning())
         app.processEvents()
         assert not window.thread.isRunning()

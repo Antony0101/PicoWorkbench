@@ -7,7 +7,7 @@ from ..engine import Drive
 from ..project import PINS
 from .menus import copy_action, popup_menu
 
-COLORS = {Drive.LOW: "#425769", Drive.HIGH: "#57e3b0", Drive.FLOATING: "#e6b961", Drive.CONFLICT: "#fc6e7c"}
+COLORS = {Drive.LOW: "#7593a6", Drive.HIGH: "#57e3b0", Drive.FLOATING: "#e6b961", Drive.CONFLICT: "#fc6e7c"}
 PART_NAMES = {"led": "LED", "button": "Button", "probe": "Probe", "pullup": "Pull-up",
               "pulldown": "Pull-down", "i2c_sensor": "I²C sensor", "spi_loopback": "SPI loopback"}
 
@@ -21,8 +21,17 @@ class Port(QGraphicsEllipseItem):
         self.setBrush(QColor("#314957"))
         self.setPen(QPen(QColor("#8da7b8"), 1.5))
         self.setZValue(5)
+        self.setFlag(QGraphicsItem.GraphicsItemFlag.ItemIsFocusable)
         self.setCursor(Qt.CursorShape.CrossCursor)
         self.setToolTip(endpoint + " — click two ports to connect")
+
+    def boundingRect(self):
+        return QRectF(-10, -10, 20, 20)
+
+    def shape(self):
+        path = QPainterPath()
+        path.addEllipse(self.boundingRect())
+        return path
 
     def mousePressEvent(self, event):
         if event.button() != Qt.MouseButton.LeftButton:
@@ -30,6 +39,13 @@ class Port(QGraphicsEllipseItem):
             return
         self.canvas_scene.port_clicked(self.endpoint)
         event.accept()
+
+    def keyPressEvent(self, event):
+        if event.key() in (Qt.Key.Key_Return, Qt.Key.Key_Enter, Qt.Key.Key_Space):
+            self.canvas_scene.port_clicked(self.endpoint)
+            event.accept()
+        else:
+            super().keyPressEvent(event)
 
 
 class Part(QGraphicsObject):
@@ -39,11 +55,13 @@ class Part(QGraphicsObject):
         self.canvas_scene = scene
         self.state = Drive.FLOATING
         self.device_text = "No transfers"
+        self.setToolTip(f'{component.kind} / {component.id}\n{component.label}')
         self.ports = {}
         self.down = False
         self.setPos(component.x, component.y)
         self.setFlags(QGraphicsItem.GraphicsItemFlag.ItemIsMovable |
                       QGraphicsItem.GraphicsItemFlag.ItemIsSelectable |
+                      QGraphicsItem.GraphicsItemFlag.ItemIsFocusable |
                       QGraphicsItem.GraphicsItemFlag.ItemSendsGeometryChanges)
         self.setData(0, component.id)
         self.ports = {name: Port(component.id + ":" + name,
@@ -122,6 +140,8 @@ class Part(QGraphicsObject):
         event.accept()
 
     def itemChange(self, change, value):
+        if change == QGraphicsItem.GraphicsItemChange.ItemPositionChange and self.canvas_scene.grid:
+            return QPointF(round(value.x() / 16) * 16, round(value.y() / 16) * 16)
         if change == QGraphicsItem.GraphicsItemChange.ItemPositionHasChanged:
             self.canvas_scene.update_wires()
         return super().itemChange(change, value)
@@ -132,6 +152,8 @@ class CircuitScene(QGraphicsScene):
     button = Signal(str, bool)
     moved = Signal(str, float, float)
     edit_requested = Signal(str)
+    port_selected = Signal(str)
+    pending_changed = Signal(str)
 
     def __init__(self, parent=None):
         super().__init__(parent)
@@ -139,7 +161,9 @@ class CircuitScene(QGraphicsScene):
         self.parts = {}
         self.wire_items = []
         self.pending = None
+        self.highlighted = set()
         self.running = False
+        self.grid = False
         self.setBackgroundBrush(QColor("#101d25"))
         self.setSceneRect(0, 0, 1100, 850)
 
@@ -153,13 +177,14 @@ class CircuitScene(QGraphicsScene):
         self.clear()
         self.ports, self.parts, self.wire_items = {}, {}, []
         self.pending = None
+        self.highlighted = set()
         self.project = project
         self.label("CIRCUIT WORKSPACE", 25, 10, 10, "#5dd7b5")
         self.label("Right-click for actions · click two ports to wire · drag parts", 25, 35, 9)
         board = self.addRect(175, 95, 250, 635, QPen(QColor("#387969"), 2), QColor("#153d37"))
         board.setZValue(-1)
         self.label("RP2040", 247, 115, 19, "#d8f8eb")
-        self.label("PICO PROFILE", 250, 152, 9, "#79bea7")
+        self.label("LOGICAL GPIOs", 245, 152, 9, "#a2cdbf")
         self.label("LOGICAL GPIO VIEW", 236, 690, 8, "#79bea7")
         chip = self.addRect(248, 355, 105, 100, QPen(QColor("#34575a"), 2), QColor("#18282e"))
         chip.setZValue(-1)
@@ -190,18 +215,27 @@ class CircuitScene(QGraphicsScene):
             item.setToolTip(a + " ↔ " + b)
             self.addItem(item)
             self.wire_items.append((a, b, item))
+        self.preview = QGraphicsPathItem()
+        self.preview.setPen(QPen(QColor('#fcdd8a'), 2, Qt.PenStyle.DashLine))
+        self.preview.setZValue(4)
+        self.preview.setAcceptedMouseButtons(Qt.MouseButton.NoButton)
+        self.addItem(self.preview)
         self.update_wires()
 
     def port_clicked(self, endpoint):
-        if self.running:
+        if self.running or endpoint not in self.ports:
             return
+        self.port_selected.emit(endpoint)
         if self.pending is None:
             self.pending = endpoint
             self.ports[endpoint].setPen(QPen(QColor("#fcdd8a"), 3))
+            self.pending_changed.emit(f'Wire from {endpoint} → choose destination · Esc cancels')
         else:
             first = self.pending
             self.pending = None
             self.ports[first].setPen(QPen(QColor("#8da7b8"), 1.5))
+            self.preview.setPath(QPainterPath())
+            self.pending_changed.emit('Logical GPIOs · circuit changes need Apply')
             if first != endpoint:
                 self.connect_requested.emit(first, endpoint)
 
@@ -209,6 +243,16 @@ class CircuitScene(QGraphicsScene):
         if self.pending is not None:
             self.ports[self.pending].setPen(QPen(QColor("#8da7b8"), 1.5))
             self.pending = None
+            self.preview.setPath(QPainterPath())
+            self.pending_changed.emit('Wire canceled · logical GPIO view')
+
+    def mouseMoveEvent(self, event):
+        if self.pending:
+            start = self.ports[self.pending].scenePos()
+            path = QPainterPath(start)
+            path.lineTo(event.scenePos())
+            self.preview.setPath(path)
+        super().mouseMoveEvent(event)
 
     def update_wires(self):
         for a, b, item in self.wire_items:
@@ -222,6 +266,7 @@ class CircuitScene(QGraphicsScene):
         self.running = running
         for p in range(30):
             self.ports[f"pico:GP{p}"].setBrush(QColor(COLORS[snapshot.pin(p)]))
+            self.ports[f'pico:GP{p}'].setToolTip(f'pico:GP{p} · {snapshot.pin(p).name} · logical GPIO, not header number')
         self.onboard_led.setBrush(QColor(COLORS[snapshot.pin(25)]))
         for key, part in self.parts.items():
             part.setFlag(QGraphicsItem.GraphicsItemFlag.ItemIsMovable, not running)
@@ -239,13 +284,16 @@ class CircuitScene(QGraphicsScene):
             else:
                 pin = (endpoints or {}).get(endpoint, pins.get(endpoint.split(":")[0]))
             state = snapshot.pin(pin) if pin is not None else Drive.FLOATING
-            wire.setPen(QPen(QColor(COLORS[state]), 3 if wire.isSelected() else 2))
+            wire.setData(1, COLORS[state])
+            wire.setPen(QPen(QColor('#fcdd8a' if a in self.highlighted else COLORS[state]), 3 if wire.isSelected() or a in self.highlighted else 2))
 
 
 class CircuitView(QGraphicsView):
     delete_requested = Signal()
     add_requested = Signal(str, float, float)
     disconnect_requested = Signal(str)
+    duplicate_requested = Signal()
+    nudge_requested = Signal(float, float)
 
     def __init__(self, scene):
         super().__init__(scene)
@@ -253,6 +301,8 @@ class CircuitView(QGraphicsView):
         self.setDragMode(QGraphicsView.DragMode.ScrollHandDrag)
         self.setTransformationAnchor(QGraphicsView.ViewportAnchor.AnchorUnderMouse)
         self.setMinimumWidth(550)
+        self.setMinimumWidth(320)
+        self.setMouseTracking(True)
         self.simulation_actions = []
 
     def fit_canvas(self):
@@ -318,7 +368,12 @@ class CircuitView(QGraphicsView):
         return menu
 
     def contextMenuEvent(self, event):
-        popup_menu(self, self.context_menu(event.pos()), event.globalPos())
+        position = event.pos()
+        if event.reason() == event.Reason.Keyboard:
+            item = self.scene().focusItem() or next(iter(self.scene().selectedItems()), None)
+            if item:
+                position = self.mapFromScene(item.sceneBoundingRect().center())
+        popup_menu(self, self.context_menu(position), self.viewport().mapToGlobal(position))
         event.accept()
 
     def wheelEvent(self, event):
@@ -335,5 +390,9 @@ class CircuitView(QGraphicsView):
             self.delete_requested.emit()
         elif event.key() == Qt.Key.Key_Escape:
             self.scene().cancel_connection()
+        elif event.key() in (Qt.Key.Key_Left, Qt.Key.Key_Right, Qt.Key.Key_Up, Qt.Key.Key_Down):
+            dx = -16 if event.key() == Qt.Key.Key_Left else 16 if event.key() == Qt.Key.Key_Right else 0
+            dy = -16 if event.key() == Qt.Key.Key_Up else 16 if event.key() == Qt.Key.Key_Down else 0
+            self.nudge_requested.emit(dx, dy)
         else:
             super().keyPressEvent(event)

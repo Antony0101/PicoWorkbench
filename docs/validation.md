@@ -14,10 +14,16 @@ batches and early breakpoint stops, and exercise clock reset/persistence in the 
 
 Firmware compiler tests skip if ARM GCC is absent. GUI tests skip if Qt is absent.
 The fully prepared environment runs all checks.
-The current Linux workspace passes 333 tests, including thirteen GUI checks.
+The current Linux workspace passes 346 tests. Phase 2 adds thirteen
+document/desktop/trace checks to the 333-test Phase 1 baseline.
 Context-menu checks exercise viewport right clicks, component placement/editing,
 selection-aware deletion, connecting/disconnecting ports, mutation guards while
 running, clipboard output, standard editor actions, and trace display controls.
+Phase 2 checks also cover staged circuit application, undo, safe save/close,
+failed replacement, GUI-thread acknowledgements, source breakpoints, runtime flash
+preservation, exact trace measurements and preference recovery. Desktop evidence
+and remaining usability/accessibility gates are recorded in
+[Phase 2 status](../plan/phase-2/implementation-status.md).
 The new checks execute bundled SDK 2.2.0 blink/UART through crt0 and runtime init,
 validate physical load addresses and RAM vector installation, compare reset and
 batch-size traces, and exercise reset, PLL/mux readiness, SIO division and bounded

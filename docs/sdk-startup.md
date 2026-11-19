@@ -16,7 +16,7 @@ Bundled firmware needs no SDK or cross compiler:
 .venv/bin/rp2040-sim run --project examples/sdk_uart.json --duration-ms 10
 ```
 
-In the GUI, choose **File → New Pico SDK blink** or **New Pico SDK UART**.
+In the GUI, choose **File → Examples → New Pico SDK blink** or **New Pico SDK UART**.
 Press F5 to run. The load dialog's **Pico SDK ELF — skip boot2** filter explicitly
 selects SDK startup for external ELFs. Project JSON stores `"startup": "sdk"`;
 old projects default to `"direct"`. Input recordings include the startup mode
