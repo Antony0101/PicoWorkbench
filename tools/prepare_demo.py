@@ -46,6 +46,6 @@ def bundle(name, sdk=False):
 if __name__ == "__main__":
     names = sys.argv[1:] or ("blink", "workbench", "pio_blink", "dma_pio", "multicore")
     for name in names:
-        if name not in ("blink", "workbench", "pio_blink", "dma_pio", "multicore", "sdk_blink", "sdk_uart", "sdk_flash"):
+        if name not in ("blink", "workbench", "pio_blink", "dma_pio", "multicore", "sdk_blink", "sdk_uart", "sdk_flash", "sdk_dashboard"):
             raise SystemExit("Unknown demo: " + name)
         bundle(name, sdk=name.startswith("sdk_"))

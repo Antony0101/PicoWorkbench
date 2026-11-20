@@ -5,6 +5,8 @@ import json
 
 from .engine import Drive, Engine, Event, Stop
 from .components import RegisterSensor, SpiLoopback
+from .oled import SSD1306
+from .capture import BusCapture, BusExchange
 from .project import Project
 
 
@@ -16,6 +18,7 @@ class Simulation:
         self.pressed: set[str] = set()
         self.recording: list[dict] = []
         self.image: bytes = b""
+        self.bus_capture = BusCapture()
         self._circuit()
 
     def close(self):
@@ -38,12 +41,14 @@ class Simulation:
         self._circuit()
 
     def _circuit(self):
+        self.bus_capture.clear()
+        self._bus_sequence = 0
         self.project.validate()
         self.groups = self.project.groups()
         self.pin_for_component = {}
         self.endpoint_pins = {}
-        self.devices = {c.id: RegisterSensor() if c.kind == "i2c_sensor" else SpiLoopback()
-                        for c in self.project.components if c.kind in ("i2c_sensor", "spi_loopback")}
+        models = {'i2c_sensor': RegisterSensor, 'spi_loopback': SpiLoopback, 'ssd1306': SSD1306}
+        self.devices = {c.id: models[c.kind]() for c in self.project.components if c.kind in models}
         for group in self.groups:
             pins = sorted(int(e.split("GP")[1]) for e in group if e.startswith("pico:GP"))
             if not pins:
@@ -114,7 +119,7 @@ class Simulation:
         candidates = []
         state = self.engine.snapshot()
         for component in self.project.components:
-            if (request.bus == 0 and component.kind != "i2c_sensor") or (request.bus == 1 and component.kind != "spi_loopback"):
+            if (request.bus == 0 and component.kind not in ("i2c_sensor", "ssd1306")) or (request.bus == 1 and component.kind != "spi_loopback"):
                 continue
             def pin(name):
                 pins = self.endpoint_pins.get(component.id + ":" + name, [])
@@ -142,13 +147,26 @@ class Simulation:
                 if state.pin(cs) != Drive.LOW or not state.gpio_oe & (1 << cs):
                     continue
             candidates.append(component)
-        if len(candidates) > 1:
-            raise ValueError("Multiple external devices responded to the same bus transfer")
-        if not candidates:
-            self.engine.complete_device(request, 0, False)
-        else:
-            model = self.devices[candidates[0].id]
-            self.engine.complete_device(request, model.exchange(request.value, request.flags), True)
+        result, ack, fault = 0, False, ''
+        try:
+            if len(candidates) > 1:
+                raise ValueError("Multiple external devices responded to the same bus transfer")
+            if candidates:
+                model = self.devices[candidates[0].id]
+                ack = not (isinstance(model, SSD1306) and request.flags & 1)
+                if ack:
+                    result = model.exchange(request.value, request.flags)
+            self.engine.complete_device(request, result, ack)
+        except Exception as error:
+            fault = str(error)
+            raise
+        finally:
+            self._bus_sequence += 1
+            self.bus_capture.append(BusExchange(self._bus_sequence, request.time_ns,
+                'I2C' if request.bus == 0 else 'SPI', request.controller,
+                request.target if request.bus == 0 else None,
+                ','.join(c.id for c in candidates), request.value, result,
+                request.flags, ack, fault))
 
     def run(self, deadline_ns=None, budget=10_000):
         start = self.engine.snapshot().instructions

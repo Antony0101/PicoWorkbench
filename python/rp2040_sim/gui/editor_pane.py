@@ -250,7 +250,7 @@ class EditorPane(QWidget):
 
     def update_document(self, path, language, modified):
         self.filename = str(path or ('main.py' if language == 'python' else 'firmware.c'))
-        title = Path(self.filename).name + (' *' if modified else '') + (' · MicroPython' if language == 'python' else ' · C')
+        title = (self.filename if self.filename.startswith('Pico:') else Path(self.filename).name) + (' *' if modified else '') + (' · MicroPython' if language == 'python' else ' · C')
         self.title.setText(title)
         self.title.setToolTip(self.filename + ('\nSource differs from its last source-file save; Ctrl+S saves the project separately.' if modified else ''))
         self.editor.set_language(language)

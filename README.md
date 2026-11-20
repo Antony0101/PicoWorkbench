@@ -6,7 +6,9 @@ memory, wire digital components, and watch UART output and GPIO waveforms.
 
 This is a working first release of [Phase 1](plan/phase-1/README.md).
 [Phase 2](plan/phase-2/README.md) adds desktop UI/UX improvements; see the
-[development phases](plan/README.md) for both plans and their status.
+[development phases](plan/README.md) for plans and their status.
+[Phase 3](plan/phase-3/README.md) adds a live OLED, serial plotter, bus inspector
+and interpreter-backed MicroPython files; see [runtime tools](docs/runtime-tools.md).
 Real B2 ROM boot, UF2 loading and a pinned MicroPython UART profile are supported.
 USB transfers and additional OS/hardware validation remain outside the delivered scope.
 The current engine uses functional timing; it does

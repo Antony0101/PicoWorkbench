@@ -1,6 +1,11 @@
 from importlib.resources import files
 
-NAMES = ("blink", "workbench", "pio_blink", "dma_pio", "multicore", "sdk_blink", "sdk_uart", "sdk_flash", "micropython")
+NAMES = ("blink", "workbench", "pio_blink", "dma_pio", "multicore", "sdk_blink", "sdk_uart", "sdk_flash", "sdk_dashboard", "micropython")
+
+
+def dashboard_source():
+    assets = files('rp2040_sim').joinpath('assets')
+    return assets.joinpath('ssd1306.py').read_text() + '\n' + assets.joinpath('dashboard.py').read_text()
 
 
 def image(name="blink") -> bytes:

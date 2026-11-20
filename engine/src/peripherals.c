@@ -144,6 +144,8 @@ uint32_t sim_peripherals_read(sim_t *s, uint32_t a, bool peek, bool *available) 
         case 0x78: return b->count;
         case 0x7c: return b->sda_hold;
         case 0x80: return b->abort_source;
+        case 0x88: return b->dma_cr;
+        case 0xa0: return b->fs_spklen;
         default: break;
         }
     } else if (base == 0x4003c000u || base == 0x40040000u) {
@@ -162,6 +164,7 @@ uint32_t sim_peripherals_read(sim_t *s, uint32_t a, bool peek, bool *available) 
         case 0x18: return spi_raw(b);
         case 0x1c: return spi_raw(b) & b->mask;
         case 0x20: return 0;
+        case 0x24: return b->dmacr;
         default: break;
         }
 
@@ -251,11 +254,13 @@ bool sim_peripherals_write(sim_t *s, uint32_t a, uint32_t value) {
         i2c_t *b = &s->i2c[index];
         switch (off) {
         case 0:
-            if ((value & ~0x67u) || !(value & 1) || ((value >> 1) & 3) == 0 || ((value >> 1) & 3) == 3) break;
-            b->con = atomic_value(b->con, value, alias); return true;
+            value = atomic_value(b->con, value, alias);
+            if ((value & ~0x167u) || !(value & 1) || ((value >> 1) & 3) == 0 || ((value >> 1) & 3) == 3) break;
+            b->con = value; return true;
         case 4:
+            value = atomic_value(b->tar, value, alias);
             if (value > 127) break;
-            b->tar = atomic_value(b->tar, value, alias); return true;
+            b->tar = value; return true;
         case 0x10:
             if (!b->enabled || (value & ~0x7ffu) || s->request_pending) break;
             s->request = (sim_device_request_t){++s->request_id, s->now, 0, index, b->tar,
@@ -269,9 +274,12 @@ bool sim_peripherals_write(sim_t *s, uint32_t a, uint32_t value) {
         case 0x38: b->rx_tl = value & 15; return true;
         case 0x3c: b->tx_tl = value & 15; return true;
         case 0x6c:
+            value = atomic_value(b->enabled, value, alias);
             if (value > 1) break;
             b->enabled = value; return true;
-        case 0x7c: b->sda_hold = value & 0xffffffu; return true;
+        case 0x7c: b->sda_hold = atomic_value(b->sda_hold, value, alias) & 0xffffffu; return true;
+        case 0x88: b->dma_cr = atomic_value(b->dma_cr, value, alias) & 3; return true;
+        case 0xa0: b->fs_spklen = atomic_value(b->fs_spklen, value, alias) & 255; return true;
         default: break;
         }
     } else if (base == 0x4003c000u || base == 0x40040000u) {
@@ -279,21 +287,26 @@ bool sim_peripherals_write(sim_t *s, uint32_t a, uint32_t value) {
         spi_t *b = &s->spi[index];
         switch (off) {
         case 0:
-            if ((value & 0x3f) != 7 || value > 0xffff) break;
-            b->cr0 = value; return true; /* 8-bit Motorola frames */
-        case 4: if (value & ~2u) break; b->cr1 = value; return true;
+            b->cr0 = atomic_value(b->cr0, value, alias) & 0xffff; return true;
+        case 4:
+            value = atomic_value(b->cr1, value, alias);
+            if (value & ~2u) break;
+            b->cr1 = value; return true;
         case 8:
             if (!(b->cr1 & 2) || s->request_pending) break;
+            if ((b->cr0 & 0x3f) != 7) { sim_fail(s, "SPI supports 8-bit Motorola frames only"); return true; }
             s->request = (sim_device_request_t){++s->request_id, s->now, 1, index, 0, value & 255, 0};
             s->request_pending = 1; return true;
         case 0x10:
+            value = atomic_value(b->cpsr, value, alias);
             if (value < 2 || value > 254 || (value & 1)) break;
             b->cpsr = value; return true;
         case 0x14:
+            value = atomic_value(b->mask, value, alias);
             if (value & ~12u) break;
             b->mask = value; return true;
         case 0x20: return true;
-        case 0x24: if (!value) return true; break;
+        case 0x24: b->dmacr = atomic_value(b->dmacr, value, alias) & 3; return true;
         default: break;
         }
 
@@ -399,7 +412,7 @@ int sim_complete_device_request(sim_t *s, uint64_t id, uint32_t value, int ack) 
     unsigned index = s->request.controller;
     if (s->request.bus == 0) {
         i2c_t *b = &s->i2c[index];
-        if (!ack) { b->raw |= 0x40; b->abort_source = 1; }
+        if (!ack) { b->raw |= 0x240; b->abort_source = 1; b->head = b->count = 0; }
         else if (s->request.flags & 1) {
             if (b->count == 16) return sim_fail(s, "I2C RX FIFO overflow");
             b->rx[(b->head + b->count++) % 16] = (uint8_t)value;

@@ -1,0 +1,111 @@
+{
+  "scope": "Phase 3 Linux/WSLg runtime tools",
+  "runtime_wayland": {
+    "platform": "Linux-5.15.167.4-microsoft-standard-WSL2-x86_64-with-glibc2.39",
+    "qt_platform": "wayland",
+    "checks": {
+      "live_oled_and_c_plot": true,
+      "paused_oled_survives_scene_refresh": true,
+      "bus_filter_and_outcomes": true,
+      "idle_repl_file_upload_and_listing": true,
+      "workspace_switch_and_font_scale": true
+    },
+    "requested_size": [
+      1366,
+      768
+    ],
+    "pause_latency_ms": 25.952711002901196,
+    "actual_size": [
+      1366,
+      768
+    ],
+    "source_sha256": "c754211194eca7b8ddbbc27e282f7191a36ab3417d436a0e0724586427090240"
+  },
+  "runtime_offscreen": {
+    "platform": "Linux-5.15.167.4-microsoft-standard-WSL2-x86_64-with-glibc2.39",
+    "qt_platform": "offscreen",
+    "checks": {
+      "live_oled_and_c_plot": true,
+      "paused_oled_survives_scene_refresh": true,
+      "bus_filter_and_outcomes": true,
+      "idle_repl_file_upload_and_listing": true,
+      "workspace_switch_and_font_scale": true
+    },
+    "requested_size": [
+      1366,
+      768
+    ],
+    "pause_latency_ms": 19.796285982010886,
+    "actual_size": [
+      1366,
+      768
+    ],
+    "source_sha256": "c754211194eca7b8ddbbc27e282f7191a36ab3417d436a0e0724586427090240"
+  },
+  "general_wayland": {
+    "platform": "Linux-5.15.167.4-microsoft-standard-WSL2-x86_64-with-glibc2.39",
+    "qt_platform": "wayland",
+    "scale": 1.0,
+    "checks": {
+      "laptop_and_advanced_controls": true,
+      "presentation_preserves_document_and_chip": true,
+      "full_editor_keyboard_search_and_independent_output": true,
+      "keyboard_property_edit_and_undo": true,
+      "keyboard_context_targets_selection": true,
+      "standard_widget_accessibility_interfaces": true,
+      "wire_preview_and_escape": true,
+      "font_preferences": true
+    },
+    "source_sha256": "53f5d2c253f79bd39d8d6e757bffe19e325631a9b0b4b6f2240f7d69a5ef7d62",
+    "requested_size": [
+      1366,
+      768
+    ],
+    "actual_size": [
+      1366,
+      768
+    ],
+    "minimum_size": [
+      791,
+      345
+    ],
+    "accessible_names": {
+      "source": "Source code editor",
+      "indentation": "4 spaces",
+      "problems": "Source problems",
+      "component": "led1",
+      "port": "Select port\u2026",
+      "net": "Selected net endpoints and logic state"
+    }
+  },
+  "native_contract": {
+    "normal": "passed",
+    "asan_ubsan": "passed",
+    "asan_detect_leaks": false
+  },
+  "installed_wheel": {
+    "c_dashboard": true,
+    "oled_driver_checksum_license": true,
+    "qt_views": true,
+    "inline_python_bytes": 6251
+  },
+  "external_checks": [
+    "Physical Pico comparison",
+    "Windows/macOS",
+    "Participant studies",
+    "Screen-reader audit"
+  ],
+  "regression": {
+    "passed": 386,
+    "seconds": 145.68,
+    "new_runtime_tests": 19,
+    "real_language_server_workflows": 3,
+    "command": "QT_QPA_PLATFORM=offscreen RP2040_TEST_LANGUAGE_SERVERS=1 .venv/bin/python -m pytest -q"
+  },
+  "firmware": {
+    "pico_sdk": "2.2.0",
+    "micropython": "1.26.1",
+    "sdk_dashboard_elf_bytes": 27600,
+    "driver_revision": "a08087249fda8a7994f7c54ccaad29fb9fcc448a"
+  }
+}

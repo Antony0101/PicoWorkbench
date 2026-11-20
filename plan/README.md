@@ -4,6 +4,7 @@
 | --- | --- | --- |
 | [Phase 1](phase-1/README.md) | C/Python simulator, desktop, peripherals, PIO/DMA/two cores, SDK/ROM boot and MicroPython | Linux implementation delivered for documented workloads; physical Pico and additional OS validation remain open |
 | [Phase 2](phase-2/README.md) | Desktop UI/UX: laptop layout, work protection, execution feedback, circuit editing, debugging, traces and accessibility | Linux implementation delivered; participant and screen-reader validation open |
+| [Phase 3](phase-3/README.md) | SSD1306 OLED, UART plotting, bus inspection, MicroPython files and matching dashboards | Linux/WSLg delivered; 386 tests, real firmware and installed-wheel/desktop checks passed |
 
 The original plan and its evidence now live in `phase-1/`. Existing right-click
 menus are part of that delivered baseline. Their addition does not complete the

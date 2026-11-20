@@ -1,0 +1,73 @@
+{
+  "schema": 1,
+  "board": "pico",
+  "name": "C temperature dashboard",
+  "builtin": "sdk_dashboard",
+  "source_text": null,
+  "clock_hz": 10000000,
+  "startup": "sdk",
+  "firmware": "",
+  "source": "",
+  "linker": "",
+  "bootrom": "",
+  "components": [
+    {
+      "id": "oled",
+      "kind": "ssd1306",
+      "x": 600,
+      "y": 100,
+      "label": "Temperature from ADC0",
+      "address": 60
+    },
+    {
+      "id": "sensor",
+      "kind": "i2c_sensor",
+      "x": 600,
+      "y": 330,
+      "label": "Register sensor",
+      "address": 72
+    },
+    {
+      "id": "loopback",
+      "kind": "spi_loopback",
+      "x": 600,
+      "y": 500,
+      "label": "SPI loopback",
+      "address": 72
+    }
+  ],
+  "wires": [
+    [
+      "pico:GP4",
+      "oled:sda"
+    ],
+    [
+      "pico:GP5",
+      "oled:scl"
+    ],
+    [
+      "pico:GP4",
+      "sensor:sda"
+    ],
+    [
+      "pico:GP5",
+      "sensor:scl"
+    ],
+    [
+      "pico:GP19",
+      "loopback:mosi"
+    ],
+    [
+      "pico:GP16",
+      "loopback:miso"
+    ],
+    [
+      "pico:GP18",
+      "loopback:sck"
+    ],
+    [
+      "pico:GP17",
+      "loopback:cs"
+    ]
+  ]
+}

@@ -129,6 +129,10 @@ class Window(Workflow, Workspace, QMainWindow):
         self._after_load_run = False
         self._closing = False
         self.source_path = self.project.resolve(self.project.source) if self.project.source else None
+        self.device_source_path = None
+        self.device_source_saved = None
+        self.files_busy = False
+        self._display_frames = {}
         self._make_ui()
         if self.project.builtin == "pio_blink":
             self.inspector.setCurrentWidget(self.pio_inspector)
@@ -151,9 +155,12 @@ class Window(Workflow, Workspace, QMainWindow):
         self.worker.failed.connect(self.error)
         self.worker.acknowledged.connect(self.command_completed)
         self.worker.memory.connect(self.show_memory)
+        self.worker.file_result.connect(self.file_completed)
         self.worker.finished.connect(self.thread.quit, Qt.ConnectionType.DirectConnection)
         self.thread.finished.connect(self.worker.deleteLater)
         self.thread.start()
+        if self.plotter.uart.currentIndex():
+            self.send('plot_port', port=self.plotter.uart.currentIndex())
         if project_path:
             self.request('project', lambda ok: None, project=deepcopy(self.project), source=self.editor.toPlainText())
         self._read_symbols(self.project.resolve(self.project.firmware) if self.project.firmware else None)
@@ -181,6 +188,8 @@ class Window(Workflow, Workspace, QMainWindow):
             ("New ROM boot blink", self.new_rom, None),
             ("New ROM flash test", lambda: self.new_rom(True), None),
             ("New MicroPython project", self.new_micropython, None),
+            ("New C temperature dashboard", lambda: self.new_dashboard(), None),
+            ("New MicroPython temperature dashboard", lambda: self.new_dashboard(True), None),
             ("Select B2 boot ROM…", self.select_bootrom, None),
             ("Open project…", self.open_project, "Ctrl+O"),
             ("Save project…", self.save_project, "Ctrl+S"),
@@ -320,7 +329,7 @@ class Window(Workflow, Workspace, QMainWindow):
         controls = QHBoxLayout()
         controls.addWidget(QLabel("  COMPONENTS"))
         self.part_kind = QComboBox()
-        self.part_kind.addItems(["led", "button", "probe", "pullup", "pulldown", "i2c_sensor", "spi_loopback"])
+        self.part_kind.addItems(["led", "button", "probe", "pullup", "pulldown", "i2c_sensor", "spi_loopback", "ssd1306"])
         self.part_kind.setAccessibleName('Component type to add')
         controls.addWidget(self.part_kind)
         self.add_part_button = QPushButton("+ Add")
@@ -512,6 +521,14 @@ class Window(Workflow, Workspace, QMainWindow):
         self.logs.setMaximumBlockCount(5000)
         self.logs.setFont(QFont("monospace", 10))
         self.tabs.addTab(self.logs, "Build + diagnostics")
+        from .runtime import SerialPlotter, BusInspector
+        self.plotter = SerialPlotter(self.send)
+        self.bus_inspector = BusInspector(self.send)
+        self.tabs.addTab(self.plotter, 'Serial plotter')
+        self.tabs.addTab(self.bus_inspector, 'Bus inspector')
+        from .files import FilesPanel
+        self.files_panel = FilesPanel(self)
+        self.tabs.addTab(self.files_panel, 'Pico files')
         self.vertical = vertical = QSplitter(Qt.Orientation.Vertical)
         vertical.addWidget(top)
         self.editor_area = QSplitter(Qt.Orientation.Vertical)
@@ -590,6 +607,10 @@ class Window(Workflow, Workspace, QMainWindow):
         Workflow.command_completed(self, result)
 
     @Slot(object)
+    def file_completed(self, result):
+        self.files_panel.completed(result)
+
+    @Slot(object)
     def built(self, result):
         Workflow.built(self, result)
 
@@ -613,7 +634,12 @@ class Window(Workflow, Workspace, QMainWindow):
 
     @Slot(object)
     def update_state(self, packet):
+        self._runtime_packet = packet
+        if packet.get('reset'):
+            self._display_frames.clear()
+        self._display_frames.update(packet.get('displays', {}))
         self.state, self.running = packet["state"], packet["running"]
+        self.files_busy = packet.get('files_busy', False)
         state = self.state
         self.applied = packet.get('applied', self.applied)
         self.loaded_source = packet.get('loaded_source')
@@ -627,7 +653,7 @@ class Window(Workflow, Workspace, QMainWindow):
         if self.python_status != previous_python and self.python_status in ('finished', 'error'):
             self.logs.appendPlainText('Python program finished' if self.python_status == 'finished' else 'Python program raised an exception; see UART output')
         python = self.project.builtin == 'micropython'
-        self.interrupt_action.setEnabled(python and state.loaded)
+        self.interrupt_action.setEnabled(python and state.loaded and not self.files_busy)
         self.interrupt_button.setEnabled(self.interrupt_action.isEnabled())
         self.build_action.setText('Run Python' if python else 'Build + Load')
         self.serial_input.setPlaceholderText('MicroPython UART REPL command' if python else 'UART0 input (Enter appends newline)')
@@ -652,7 +678,7 @@ class Window(Workflow, Workspace, QMainWindow):
         self.clock_button.setEnabled(not self.running and state.loaded)
         self.add_part_button.setEnabled(not self.running)
         self.part_kind.setEnabled(not self.running)
-        self.scene.display(state, packet["pins"], self.running, packet.get("devices"), packet.get("endpoints"))
+        self.scene.display(state, packet["pins"], self.running, packet.get("devices"), packet.get("endpoints"), self._display_frames)
         self.pio_inspector.display(packet["pio"], state.clock_hz)
         self.dma_inspector.display(packet["dma"])
         self.cores_inspector.display(packet["cores"])
@@ -681,6 +707,9 @@ class Window(Workflow, Workspace, QMainWindow):
             self.serial.moveCursor(QTextCursor.MoveOperation.End)
             self.serial.insertPlainText(text)
         self.waveform.feed(state, packet["events"], packet["reset"])
+        self.plotter.display(packet)
+        self.bus_inspector.display(packet)
+        self.files_panel.display(packet)
         status = "RUNNING" if self.running else "PAUSED" if state.stop in (Stop.BUDGET, Stop.DEADLINE) else state.stop.name
         self.status.setText(f"{status}   ·   {state.time_ns / 1e6:,.2f} ms virtual   ·   "
                             f"{state.instructions:,} instructions   ·   "

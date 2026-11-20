@@ -34,23 +34,29 @@ class Workflow:
         self.project_label.setText(self.project.name + (' *' if dirty else ''))
         python = self.project.builtin == 'micropython'
         language = 'python' if python else 'c'
-        self.editor_pane.update_document(self.source_path, language, self.source_saved != self.editor.toPlainText())
+        device = getattr(self, 'device_source_path', None)
+        origin = 'Pico:' + device if device else self.source_path
+        saved = self.device_source_saved if device else self.source_saved
+        self.editor_pane.update_document(origin, language, saved != self.editor.toPlainText())
         self.assistance.set_context(language, self.project.startup, self.source_path)
         self.build_action.setText('Run Python' if python else 'Build + Load')
         if self.loaded_source != self.editor.toPlainText():
             self.editor.set_execution(0)
         self.refresh_breakpoints()
         self.update_actions()
+        if hasattr(self, '_runtime_packet'):
+            self.files_panel.display({**self._runtime_packet, 'reset': False})
 
     def update_actions(self):
         pending = self.circuit_pending
         loaded = bool(self.state and self.state.loaded)
-        idle = not self.running and not self.busy
+        files_busy = getattr(self, 'files_busy', False)
+        idle = not self.running and not self.busy and not files_busy
         self.editor.setReadOnly(self.busy)
         self.run_action.setText('Apply + Run' if pending else '▶ Run')
         self.run_action.setEnabled(idle and loaded)
-        self.reset_action.setEnabled(loaded and not self.busy)
-        self.pause_action.setEnabled(self.running)
+        self.reset_action.setEnabled(loaded and not self.busy and not files_busy)
+        self.pause_action.setEnabled(self.running and not files_busy)
         self.step_action.setEnabled(idle and loaded and not pending)
         self.apply_action.setEnabled(idle and loaded and pending)
         self.run_n_button.setEnabled(idle and loaded and not pending)
@@ -63,7 +69,7 @@ class Workflow:
         for part in self.scene.parts.values():
             part.setFlag(part.GraphicsItemFlag.ItemIsMovable, idle)
         self.apply_action.setToolTip('Apply staged wiring/settings and restart execution. CPU/RAM and breakpoints reset; ROM flash files are retained.')
-        self.build_action.setEnabled(not self.busy and self.build_thread is None)
+        self.build_action.setEnabled(not self.busy and not files_busy and self.build_thread is None)
         target = self.text_undo_target()
         editing = target is not None
         document = target.document() if isinstance(target, QPlainTextEdit) else target
@@ -182,6 +188,10 @@ class Workflow:
         for key in selected:
             if key in self.scene.parts:
                 self.scene.parts[key].setSelected(True)
+        for key, part in self.scene.parts.items():
+            if key in getattr(self, '_display_frames', {}):
+                part.display_frame = self._display_frames[key]
+                part.update()
         self.document_changed()
 
     def undo(self):
@@ -287,7 +297,7 @@ class Workflow:
         component = next((component for component in self.project.components if component.id == key), None)
         if component is None:
             return
-        sensor = component.kind == 'i2c_sensor'
+        sensor = component.kind in ('i2c_sensor', 'ssd1306')
         value, accepted = QInputDialog.getText(self, 'I²C sensor' if sensor else 'Component label',
             'Device address (hex or decimal)' if sensor else 'Label',
             text=f'0x{component.address:02x}' if sensor else component.label)
@@ -333,7 +343,7 @@ class Workflow:
     def replace_document(self, project, text=None):
         if self.busy or self.build_thread is not None or not self.confirm_unsaved():
             return
-        text = text if text is not None else demo.source(project.builtin)
+        text = text if text is not None else project.source_text if project.source_text is not None else demo.source(project.builtin)
         def replace():
             def loaded(ok):
                 if not ok:
@@ -341,6 +351,7 @@ class Workflow:
                 self._loading_document = True
                 self.project = project
                 self.source_path = project.resolve(project.source) if project.source else None
+                self.device_source_path = self.device_source_saved = None
                 self.editor.setPlainText(text)
                 try:
                     self.source_saved = self.source_path.read_text() if self.source_path else text
@@ -378,6 +389,10 @@ class Workflow:
 
     def new_rom(self, flash_test=False): self.rom_project(Project.rom_flash() if flash_test else Project.rom_blink())
     def new_micropython(self): self.rom_project(Project.micropython())
+
+    def new_dashboard(self, python=False):
+        project = Project.dashboard(python)
+        self.rom_project(project) if python else self.replace_document(project)
 
     def select_bootrom(self):
         name, _ = QFileDialog.getOpenFileName(self, 'Select official B2 boot ROM', '', 'ROM binary (*.bin)')
@@ -428,6 +443,7 @@ class Workflow:
                     self.error('Choose a MicroPython project for .py source, or a C project for .c source, through Examples.')
                     return
                 self.source_path = Path(name).resolve()
+                self.device_source_path = self.device_source_saved = None
                 self.project.source = str(self.source_path)
                 self.source_saved = text
                 self.editor.setPlainText(text)
@@ -446,6 +462,7 @@ class Workflow:
             temporary.write_text(self.editor.toPlainText())
             temporary.replace(path)
             self.source_path = path
+            self.device_source_path = self.device_source_saved = None
             self.project.source = str(path)
             self.source_saved = self.editor.toPlainText()
             self.document_changed()
@@ -626,6 +643,9 @@ class Workflow:
             event.accept()
             return
         event.ignore()
+        if getattr(self, 'files_busy', False):
+            self.error('Cancel or finish the file operation before closing.')
+            return
         if self.busy or not self.confirm_unsaved():
             return
         def close():

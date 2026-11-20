@@ -4,7 +4,7 @@
   "startup": "sdk",
   "sdk_archive_sha256": "dbd8db79015aced4ef35cbaa88051b0d451775010d20202e1c7d2bee69c25b35",
   "compiler": "arm-none-eabi-gcc (15:13.2.rel1-2) 13.2.1 20231009",
-  "profile_sha256": "bb0db58d403b46433cb61ac6fe6d4f5ec3fcc92ffcdb8ffc3058fc87d3723068",
+  "profile_sha256": "b7a10da77cae9bd7ce9db359e7921be8d9e0f85a903c35b37d1f43247e98ddd4",
   "newlib": "4.4.0.20231231-2 (Ubuntu)",
   "workloads": {
     "sdk_blink": {
@@ -21,6 +21,11 @@
       "startup": "rom",
       "source_sha256": "994e99213d921b2ffcafaa045d7abcf4e8ad7f089fa9a9dac69b04112b731268",
       "bundled_elf_sha256": "75a66325027e2a7d6816870f6811438a1ebd291f61e6d85c933af6a4130d8990"
+    },
+    "sdk_dashboard": {
+      "startup": "sdk",
+      "source_sha256": "f03fcbab22a06b902d941c59079df3ed56ae2af87c78307d933dec5c4799d42c",
+      "bundled_elf_sha256": "e12ec1dc7d71bca0ccc05ba65dcf39c0a45fcfc4832a3c1dfff4ca2d96fe229a"
     }
   }
 }

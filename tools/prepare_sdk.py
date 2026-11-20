@@ -33,7 +33,7 @@ def main():
         'profile_sha256': digest(ROOT / 'firmware/sdk/CMakeLists.txt'),
         'newlib': '4.4.0.20231231-2 (Ubuntu)', 'workloads': {},
     }
-    for name in ('sdk_blink', 'sdk_uart', 'sdk_flash'):
+    for name in ('sdk_blink', 'sdk_uart', 'sdk_flash', 'sdk_dashboard'):
         bundle(name, sdk=True)
         manifest['workloads'][name] = {
             'startup': 'rom' if name == 'sdk_flash' else 'sdk',

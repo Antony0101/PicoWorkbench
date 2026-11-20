@@ -1,5 +1,5 @@
 from PySide6.QtCore import QPointF, QRectF, Qt, Signal
-from PySide6.QtGui import QColor, QFont, QPainter, QPainterPath, QPen
+from PySide6.QtGui import QColor, QFont, QImage, QPainter, QPainterPath, QPen
 from PySide6.QtWidgets import (QGraphicsEllipseItem, QGraphicsItem, QGraphicsObject,
                                QGraphicsPathItem, QGraphicsScene, QGraphicsView, QMenu)
 
@@ -9,7 +9,7 @@ from .menus import copy_action, popup_menu
 
 COLORS = {Drive.LOW: "#7593a6", Drive.HIGH: "#57e3b0", Drive.FLOATING: "#e6b961", Drive.CONFLICT: "#fc6e7c"}
 PART_NAMES = {"led": "LED", "button": "Button", "probe": "Probe", "pullup": "Pull-up",
-              "pulldown": "Pull-down", "i2c_sensor": "I²C sensor", "spi_loopback": "SPI loopback"}
+              "pulldown": "Pull-down", "i2c_sensor": "I²C sensor", "spi_loopback": "SPI loopback", "ssd1306": "OLED SSD1306"}
 
 
 class Port(QGraphicsEllipseItem):
@@ -55,6 +55,8 @@ class Part(QGraphicsObject):
         self.canvas_scene = scene
         self.state = Drive.FLOATING
         self.device_text = "No transfers"
+        self.display_frame = None
+        self.display_image = None
         self.setToolTip(f'{component.kind} / {component.id}\n{component.label}')
         self.ports = {}
         self.down = False
@@ -69,13 +71,13 @@ class Part(QGraphicsObject):
                       for i, name in enumerate(PINS[component.kind])}
 
     def boundingRect(self):
-        return QRectF(-8, -3, 220, max(110, 48 + len(self.ports) * 23))
+        return QRectF(-8, -3, 220, 170 if self.component.kind == "ssd1306" else max(110, 48 + len(self.ports) * 23))
 
     def paint(self, painter, option, widget=None):
         painter.setRenderHint(QPainter.RenderHint.Antialiasing)
         painter.setPen(QPen(QColor("#65ccb5" if self.isSelected() else "#2b4553"), 1.5))
         painter.setBrush(QColor("#172932"))
-        height = max(100, 38 + len(self.ports) * 23)
+        height = 164 if self.component.kind == "ssd1306" else max(100, 38 + len(self.ports) * 23)
         painter.drawRoundedRect(QRectF(8, 0, 200 if len(self.ports) > 1 else 170, height), 10, 10)
         painter.setPen(QColor("#d9e7ed"))
         painter.setFont(QFont("Sans Serif", 9, QFont.Weight.DemiBold))
@@ -94,6 +96,19 @@ class Part(QGraphicsObject):
             painter.setPen(QColor("#e6f4f5"))
             painter.drawText(QRectF(24, 34, 138, 35), Qt.AlignmentFlag.AlignCenter,
                              "PRESSED" if self.down else "Hold button")
+        elif kind == 'ssd1306':
+            painter.setRenderHint(QPainter.RenderHint.SmoothPixmapTransform, False)
+            painter.fillRect(QRectF(68, 34, 128, 64), QColor('#02080c'))
+            if self.display_frame is not None:
+                if self.display_image is None or self.display_image[0] != self.display_frame:
+                    frame = self.display_frame
+                    self.display_image = (frame, QImage(frame.pixels, 128, 64, 128, QImage.Format.Format_Grayscale8).copy())
+                painter.drawImage(QRectF(68, 34, 128, 64), self.display_image[1])
+            painter.setFont(QFont('Sans Serif', 8))
+            for name, port in self.ports.items():
+                painter.drawText(QRectF(14, port.pos().y()-8, 55, 20), name.upper())
+            painter.drawText(QRectF(20, 103, 180, 30), Qt.TextFlag.TextWordWrap,
+                             f'0x{self.component.address:02X} · {self.device_text}')
         elif len(self.ports) > 1:
             painter.setFont(QFont("Sans Serif", 8))
             for name, port in self.ports.items():
@@ -262,7 +277,7 @@ class CircuitScene(QGraphicsScene):
             path.cubicTo(start + QPointF(bend, 0), end - QPointF(bend, 0), end)
             item.setPath(path)
 
-    def display(self, snapshot, pins, running, devices=None, endpoints=None):
+    def display(self, snapshot, pins, running, devices=None, endpoints=None, displays=None):
         self.running = running
         for p in range(30):
             self.ports[f"pico:GP{p}"].setBrush(QColor(COLORS[snapshot.pin(p)]))
@@ -272,6 +287,8 @@ class CircuitScene(QGraphicsScene):
             part.setFlag(QGraphicsItem.GraphicsItemFlag.ItemIsMovable, not running)
             part.state = snapshot.pin(pins[key]) if key in pins else Drive.FLOATING
             part.device_text = (devices or {}).get(key, "No transfers")
+            if key in (displays or {}):
+                part.display_frame = displays[key]
             for port in part.ports.values():
                 pin = (endpoints or {}).get(port.endpoint)
                 state = snapshot.pin(pin) if pin is not None else part.state
@@ -344,7 +361,7 @@ class CircuitView(QGraphicsView):
             if part is not None:
                 key = part.component.id
                 menu.addSection(key)
-                title = "Edit I²C address…" if part.component.kind == "i2c_sensor" else "Edit label…"
+                title = "Edit I²C address…" if part.component.kind in ("i2c_sensor", "ssd1306") else "Edit label…"
                 edit_action(title, lambda: scene.edit_requested.emit(key))
             else:
                 menu.addSection("Wire")

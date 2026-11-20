@@ -29,12 +29,12 @@ typedef struct {
 } uart_t;
 typedef struct {
     uint32_t con, tar, enabled, mask, raw, abort_source, rx_tl, tx_tl;
-    uint32_t timings[4], sda_hold;
+    uint32_t timings[4], sda_hold, dma_cr, fs_spklen;
     uint8_t rx[16];
     unsigned head, count;
 } i2c_t;
 typedef struct {
-    uint32_t cr0, cr1, cpsr, mask;
+    uint32_t cr0, cr1, cpsr, mask, dmacr;
     uint8_t rx[8];
     unsigned head, count;
 } spi_t;

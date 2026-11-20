@@ -9,7 +9,7 @@ from .demo import NAMES
 SCHEMA = 1
 PINS = {"led": ("signal",), "button": ("signal",), "pullup": ("signal",),
         "pulldown": ("signal",), "probe": ("signal",),
-        "i2c_sensor": ("sda", "scl"), "spi_loopback": ("mosi", "miso", "sck", "cs")}
+        "i2c_sensor": ("sda", "scl"), "ssd1306": ("sda", "scl"), "spi_loopback": ("mosi", "miso", "sck", "cs")}
 KINDS = set(PINS)
 ID = re.compile(r"^[A-Za-z][A-Za-z0-9_-]{0,63}$")
 
@@ -21,7 +21,11 @@ class Component:
     x: float = 600
     y: float = 200
     label: str = ""
-    address: int = 0x48
+    address: int | None = None
+
+    def __post_init__(self):
+        if self.address is None:
+            self.address = 0x3c if self.kind == 'ssd1306' else 0x48
 
 
 @dataclass
@@ -119,6 +123,23 @@ class Project:
         p = Path(value)
         return (self.path.parent if self.path else Path.cwd()) / p if not p.is_absolute() else p
 
+    @classmethod
+    def dashboard(cls, python=False):
+        from . import demo
+        project = cls.micropython() if python else cls(name='C temperature dashboard', builtin='sdk_dashboard', startup='sdk')
+        project.name = ('MicroPython' if python else 'C') + ' temperature dashboard'
+        project.clock_hz = 10_000_000
+        project.components = [Component('oled', 'ssd1306', 600, 100, 'Temperature from ADC0'),
+                              Component('sensor', 'i2c_sensor', 600, 330, 'Register sensor'),
+                              Component('loopback', 'spi_loopback', 600, 500, 'SPI loopback')]
+        project.wires = [('pico:GP4', 'oled:sda'), ('pico:GP5', 'oled:scl'),
+                         ('pico:GP4', 'sensor:sda'), ('pico:GP5', 'sensor:scl'),
+                         ('pico:GP19', 'loopback:mosi'), ('pico:GP16', 'loopback:miso'),
+                         ('pico:GP18', 'loopback:sck'), ('pico:GP17', 'loopback:cs')]
+        if python:
+            project.source_text = demo.dashboard_source()
+        return project
+
     def endpoints(self) -> set[str]:
         return {f"pico:GP{p}" for p in range(30)} | {
             f"{c.id}:{pin}" for c in self.components for pin in PINS.get(c.kind, ())}
@@ -149,6 +170,8 @@ class Project:
                 raise ValueError("Invalid component label")
             if not isinstance(c.address, int) or not 8 <= c.address <= 119:
                 raise ValueError("Device address must be between 0x08 and 0x77")
+            if c.kind == 'ssd1306' and c.address not in (0x3c, 0x3d):
+                raise ValueError('SSD1306 address must be 0x3C or 0x3D')
         endpoints, wires = self.endpoints(), set()
         for wire in self.wires:
             if not isinstance(wire, (tuple, list)) or len(wire) != 2 or not all(isinstance(e, str) for e in wire):

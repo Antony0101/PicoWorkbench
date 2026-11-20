@@ -115,8 +115,9 @@ class Workspace:
     def select_component(self, key, select=True):
         component = next((c for c in self.project.components if c.id == key), None)
         self.property_label.setText(component.label if component else '')
-        self.property_address.setEnabled(bool(component and component.kind == 'i2c_sensor' and not self.running))
+        self.property_address.setEnabled(bool(component and component.kind in ('i2c_sensor', 'ssd1306') and not self.running))
         if component:
+            self.property_address.setRange(0x3c, 0x3d) if component.kind == 'ssd1306' else self.property_address.setRange(8, 119)
             self.property_address.setValue(component.address)
         self.properties_apply.setEnabled(bool(component) and not self.running)
         if component and select:
@@ -131,7 +132,7 @@ class Workspace:
             for component in project.components:
                 if component.id == key:
                     component.label = label[:256]
-                    if component.kind == 'i2c_sensor':
+                    if component.kind in ('i2c_sensor', 'ssd1306'):
                         component.address = address
         self.edit_circuit(change, 'Edit component')
 
@@ -214,6 +215,9 @@ class Workspace:
             width = self.settings.value('editor/indent_width', 4, int)
             self.editor_pane.indentation.setCurrentIndex(max(0, self.editor_pane.indentation.findData(width if width in (2,4,8) else 4)))
             self.editor_pane.pairs.setChecked(self.settings.value('editor/auto_pairs', True, bool))
+            self.plotter.uart.setCurrentIndex(max(0, min(1, self.settings.value('runtime/plot_uart', 0, int))))
+            self.plotter.canvas.window_ns = max(1000, min(3_600_000_000_000, self.settings.value('runtime/plot_window_ns', 5_000_000_000, int)))
+            self.bus_inspector.filter.setText(self.settings.value('runtime/bus_filter', ''))
         except (TypeError, ValueError, OverflowError):
             self.reset_layout()
         screen = self.screen() or QApplication.primaryScreen()
@@ -232,7 +236,10 @@ class Workspace:
             'advanced':self.advanced_action.isChecked(), 'guide':not self.guide.isHidden(),
             'font_size':self.editor.font().pointSize(),
             'editor/indent_width':self.editor.indent_width,
-            'editor/auto_pairs':self.editor.auto_pairs}.items():
+            'editor/auto_pairs':self.editor.auto_pairs,
+            'runtime/plot_uart':self.plotter.uart.currentIndex(),
+            'runtime/plot_window_ns':self.plotter.canvas.window_ns,
+            'runtime/bus_filter':self.bus_inspector.filter.text()}.items():
             self.settings.setValue(key, value)
         self.settings.setValue('workspace', self.current_workspace)
         self.settings.sync()
@@ -259,6 +266,8 @@ class Workspace:
         layout.addWidget(QLabel('Choose an example, then use Run or Build / Run Python.'))
         choices = QListWidget()
         examples = [('C blink + button', self.new_project), ('MicroPython · UART REPL', self.new_micropython),
+                    ('C OLED + plotter dashboard', lambda: self.new_dashboard()),
+                    ('MicroPython OLED + plotter dashboard', lambda: self.new_dashboard(True)),
                     ('Peripheral workbench', self.new_workbench), ('PIO blink', self.new_pio_blink),
                     ('DMA to PIO', self.new_dma_pio), ('Two cores', self.new_multicore),
                     ('Pico SDK C blink', self.new_sdk), ('Real ROM boot blink', self.new_rom)]
