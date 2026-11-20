@@ -60,3 +60,24 @@ def test_schema_rejection(tmp_path):
     path.write_text(json.dumps({"schema": 999, "board": "pico"}))
     with pytest.raises(ValueError, match="schema"):
         Project.load(path)
+
+
+def test_pending_build_startup_preserves_saved_firmware_policy(tmp_path):
+    project = Project.demo()
+    project.build_startup = 'rom'
+    path = tmp_path/'pending.json'
+    project.save(path)
+    restored = Project.load(path)
+    assert restored.startup == 'direct' and restored.build_mode == 'rom'
+    document = json.loads(path.read_text())
+    document.pop('build_startup')
+    path.write_text(json.dumps(document))
+    assert Project.load(path).build_mode == 'direct'
+
+
+@pytest.mark.parametrize('mode', ['invalid', 1, False])
+def test_invalid_build_startup_is_rejected(mode):
+    project = Project.demo()
+    project.build_startup = mode
+    with pytest.raises(ValueError, match='Build startup'):
+        project.validate()

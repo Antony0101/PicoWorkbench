@@ -33,11 +33,44 @@ application does not download firmware or ROMs while loading a project.
 
 ## Run
 
+The desktop's **Startup** selector, beside Playback speed, chooses the next C
+editor build:
+
+| Selection | Source style | Execution |
+| --- | --- | --- |
+| **Direct load** | Freestanding C with a vector table and `reset_handler()` | Starts at the application's reset vector; skips ROM |
+| **ROM boot** | Pico SDK C with `int main(void)` | Runs the real B2 ROM → boot2 → SDK startup → `main()` |
+| **SDK shortcut** | Pico SDK C with `int main(void)` | Starts at SDK firmware vectors; skips ROM and boot2 |
+
+Choose a mode, press **F7 / Build + Load**, then **F5 / Run**. For a ready-to-edit
+ROM example, choose **File → Examples → New ROM boot blink**. The SDK build
+automatically supplies boot2, its checksum and the startup/vector code. The
+earlier low-level blink's custom vectors and `reset_handler()` belong to Direct
+load; selecting ROM boot does not rewrite that source into SDK `main()` code.
+
+Changing the selection preserves the editor and the current simulated program.
+Run/Step/Reset wait for a successful matching build or firmware load; returning
+the selector to the loaded mode makes the current program runnable again.
+A failed build leaves the loaded image and its source identity intact. The
+status bar continues to show the actual loaded startup path, while the execution
+row identifies a pending choice. Mode selection is disabled during execution,
+builds, loads and file operations. The packaged MicroPython profile uses ROM boot.
+
+Projects retain `startup` for the saved firmware. If a different next-build mode
+is pending, an optional `build_startup` field saves that choice separately, so
+reopening still loads the valid existing firmware. Existing schema-1 projects
+without this field keep their original behavior. A successful build/load updates
+`startup` and clears the pending override. **Load firmware** initially selects the
+filter matching the chosen mode; the selected filter determines how that image
+loads. External ROM images must already contain a valid boot2 page.
+
 ```sh
 .venv/bin/rp2040-sim gui --project examples/rom_blink.json
 .venv/bin/rp2040-sim run --project examples/rom_flash.json --duration-ms 200
 .venv/bin/rp2040-sim run build/sdk/sdk_blink.elf --startup rom --duration-ms 1100
 .venv/bin/rp2040-sim run firmware.uf2 --bootrom /path/to/bootrom-b2.bin
+# Direct-load ELF (custom vectors/reset_handler):
+.venv/bin/rp2040-sim run firmware.elf --startup direct --duration-ms 1000
 ```
 
 Use **File → Examples → New ROM boot blink**, **New ROM flash test**, or the firmware

@@ -271,6 +271,18 @@ class Window(Workflow, Workspace, QMainWindow):
         execution.setMovable(False)
         self.addToolBar(execution)
         self.execution_toolbar = execution
+        execution.addWidget(QLabel('  Startup '))
+        self.startup_combo = QComboBox()
+        self.startup_combo.setAccessibleName('Firmware startup mode')
+        self.startup_combo.addItem('Direct load', 'direct')
+        self.startup_combo.addItem('ROM boot', 'rom')
+        self.startup_combo.addItem('SDK shortcut', 'sdk')
+        self.startup_combo.setItemData(0, 'Build freestanding C with an explicit vector table and reset_handler. Skip boot ROM.', Qt.ItemDataRole.ToolTipRole)
+        self.startup_combo.setItemData(1, 'Build Pico SDK C with main(); execute the real B2 ROM, boot2, then firmware.', Qt.ItemDataRole.ToolTipRole)
+        self.startup_combo.setItemData(2, 'Build Pico SDK C with main(); start at firmware vectors, skipping ROM and boot2.', Qt.ItemDataRole.ToolTipRole)
+        self.startup_combo.setCurrentIndex(self.startup_combo.findData(self.project.build_mode))
+        self.startup_combo.currentIndexChanged.connect(self.change_build_mode)
+        execution.addWidget(self.startup_combo)
         execution.addWidget(QLabel("  Playback speed "))
         self.speed_combo = QComboBox()
         for speed in (0.01, 0.05, 0.1, 0.25, 0.5, 1.0, 2.0, 4.0):

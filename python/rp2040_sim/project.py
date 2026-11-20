@@ -42,6 +42,12 @@ class Project:
     components: list[Component] = field(default_factory=list)
     wires: list[tuple[str, str]] = field(default_factory=list)
     path: Path | None = field(default=None, repr=False)
+    build_startup: str | None = None
+
+    @property
+    def build_mode(self):
+        """Next editor build; startup continues to describe the saved firmware."""
+        return self.build_startup or self.startup
 
     @classmethod
     def demo(cls):
@@ -149,6 +155,10 @@ class Project:
             raise ValueError("Invalid project name")
         if self.startup not in ("direct", "sdk", "rom"):
             raise ValueError("Startup must be direct, sdk or rom")
+        if self.build_startup not in (None, 'direct', 'sdk', 'rom'):
+            raise ValueError('Build startup must be direct, sdk or rom')
+        if self.builtin == 'micropython' and self.build_startup not in (None, 'rom'):
+            raise ValueError('The MicroPython profile requires ROM boot')
         if self.builtin not in NAMES:
             raise ValueError("Unknown bundled firmware")
         if self.source_text is not None and (not isinstance(self.source_text, str) or len(self.source_text) > 500_000):
@@ -216,6 +226,8 @@ class Project:
                     "source_text": self.source_text,
                     "clock_hz": self.clock_hz, "startup": self.startup, **paths,
                     "components": [asdict(c) for c in self.components], "wires": self.wires}
+        if self.build_startup is not None:
+            document['build_startup'] = self.build_startup
         temporary = path.with_suffix(path.suffix + ".tmp")
         temporary.write_text(json.dumps(document, indent=2) + "\n")
         temporary.replace(path)
@@ -230,7 +242,7 @@ class Project:
         d = json.loads(path.read_text())
         if not isinstance(d, dict) or d.get("schema") != SCHEMA or d.get("board") != "pico":
             raise ValueError("Unsupported project schema or board")
-        allowed = {"schema", "board", "name", "clock_hz", "startup", "bootrom", "firmware", "source", "source_text", "linker", "builtin", "components", "wires"}
+        allowed = {"schema", "board", "name", "clock_hz", "startup", "build_startup", "bootrom", "firmware", "source", "source_text", "linker", "builtin", "components", "wires"}
         if set(d) - allowed:
             raise ValueError("Unknown project fields")
         try:
@@ -240,6 +252,7 @@ class Project:
                           source_text=d.get("source_text"),
                           clock_hz=d.get("clock_hz", 1_000_000),
                           startup=d.get("startup", "direct"),
+                          build_startup=d.get('build_startup'),
                           bootrom=d.get("bootrom", ""),
                           components=[Component(**c) for c in d.get("components", [])],
                           wires=d.get("wires", []), path=path.resolve())

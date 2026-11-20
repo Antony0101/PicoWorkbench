@@ -26,6 +26,34 @@ class Workflow:
     def document_dirty(self):
         return fingerprint(self.project, self.editor.toPlainText()) != self.saved_document
 
+    @property
+    def startup_pending(self):
+        return self.project.build_mode != self.project.startup
+
+    def change_build_mode(self, index):
+        if self._loading_document:
+            return
+        mode = self.startup_combo.itemData(index)
+        if (mode not in ('direct', 'rom', 'sdk') or self.running or self.busy or
+                getattr(self, 'files_busy', False) or self.build_thread is not None or
+                self.project.builtin == 'micropython'):
+            self.update_actions()
+            return
+        if mode == 'rom':
+            from ..images import bootrom
+            try:
+                bootrom(self.project.resolve(self.project.bootrom) if self.project.bootrom else None)
+            except (OSError, ValueError, RuntimeError) as error:
+                self.error(str(error))
+                self.update_actions()
+                return
+        self.project.build_startup = None if mode == self.project.startup else mode
+        self.document_changed()
+        description = ('Freestanding C requires vectors and reset_handler.' if mode == 'direct' else
+                       'Pico SDK C requires main(); ROM boot includes B2 ROM and boot2.' if mode == 'rom' else
+                       'Pico SDK C requires main(); SDK shortcut skips ROM and boot2.')
+        self.logs.appendPlainText(description + ' Press F7 to build and load. Source text is preserved.')
+
     def document_changed(self):
         if self._loading_document:
             return
@@ -38,7 +66,7 @@ class Workflow:
         origin = 'Pico:' + device if device else self.source_path
         saved = self.device_source_saved if device else self.source_saved
         self.editor_pane.update_document(origin, language, saved != self.editor.toPlainText())
-        self.assistance.set_context(language, self.project.startup, self.source_path)
+        self.assistance.set_context(language, self.project.build_mode, self.source_path)
         self.build_action.setText('Run Python' if python else 'Build + Load')
         if self.loaded_source != self.editor.toPlainText():
             self.editor.set_execution(0)
@@ -49,18 +77,19 @@ class Workflow:
 
     def update_actions(self):
         pending = self.circuit_pending
+        mode_pending = self.startup_pending
         loaded = bool(self.state and self.state.loaded)
         files_busy = getattr(self, 'files_busy', False)
         idle = not self.running and not self.busy and not files_busy
         self.editor.setReadOnly(self.busy)
         self.run_action.setText('Apply + Run' if pending else '▶ Run')
-        self.run_action.setEnabled(idle and loaded)
-        self.reset_action.setEnabled(loaded and not self.busy and not files_busy)
+        self.run_action.setEnabled(idle and loaded and not mode_pending)
+        self.reset_action.setEnabled(loaded and not self.busy and not files_busy and not mode_pending)
         self.pause_action.setEnabled(self.running and not files_busy)
-        self.step_action.setEnabled(idle and loaded and not pending)
+        self.step_action.setEnabled(idle and loaded and not pending and not mode_pending)
         self.apply_action.setEnabled(idle and loaded and pending)
-        self.run_n_button.setEnabled(idle and loaded and not pending)
-        self.clock_button.setEnabled(idle and loaded and not pending)
+        self.run_n_button.setEnabled(idle and loaded and not pending and not mode_pending)
+        self.clock_button.setEnabled(idle and loaded and not pending and not mode_pending)
         self.clock_spin.setEnabled(idle and not pending)
         self.instruction_spin.setEnabled(idle and not pending)
         self.add_part_button.setEnabled(idle)
@@ -70,6 +99,11 @@ class Workflow:
             part.setFlag(part.GraphicsItemFlag.ItemIsMovable, idle)
         self.apply_action.setToolTip('Apply staged wiring/settings and restart execution. CPU/RAM and breakpoints reset; ROM flash files are retained.')
         self.build_action.setEnabled(not self.busy and not files_busy and self.build_thread is None)
+        self.startup_combo.blockSignals(True)
+        self.startup_combo.setCurrentIndex(self.startup_combo.findData(self.project.build_mode))
+        self.startup_combo.blockSignals(False)
+        self.startup_combo.setEnabled(idle and self.build_thread is None and self.project.builtin != 'micropython')
+        self.startup_combo.setToolTip('Startup for the next F7 build. Changing it preserves source and the loaded program until a build succeeds. MicroPython uses ROM boot.')
         target = self.text_undo_target()
         editing = target is not None
         document = target.document() if isinstance(target, QPlainTextEdit) else target
@@ -100,13 +134,16 @@ class Workflow:
             phase = 'Fault'
         else:
             phase = 'Paused'
-        if pending:
+        if mode_pending:
+            title = self.startup_combo.currentText()
+            difference = f'{title} selected · F7 to build and load'
+        elif pending:
             difference = 'Circuit pending · Apply restarts execution'
         elif self.editor.toPlainText() != self.loaded_source:
             difference = 'Edited — upload required' if self.project.builtin == 'micropython' else 'Edited — rebuild required'
         else:
             difference = 'Source matches last upload' if self.project.builtin == 'micropython' else 'Source matches loaded program'
-        if self.loaded_source is None and not pending:
+        if self.loaded_source is None and not pending and not mode_pending:
             difference = 'Python source not uploaded' if self.project.builtin == 'micropython' else 'Source not associated with loaded firmware'
         name = Path(self.loaded_name).name
         self.identity_label.setText(f'{phase} · {name} · {difference}')
@@ -137,10 +174,13 @@ class Workflow:
         self.document_changed()
 
     def send(self, name, **fields):
+        if name == 'run' and self.busy:
+            self._after_load_run = True
+            return
+        if name in ('run', 'step', 'run_instructions', 'reset') and self.startup_pending:
+            self.error('Startup changed. Press F7 to build and load matching firmware, or restore the loaded startup mode.')
+            return
         if name == 'run':
-            if self.busy:
-                self._after_load_run = True
-                return
             if self.circuit_pending:
                 self.apply_circuit(run=True)
                 return
@@ -473,7 +513,8 @@ class Workflow:
 
     def open_firmware(self):
         filters = 'Direct-load ARM ELF (*.elf *.axf);;Pico SDK ELF — skip boot2 (*.elf *.axf);;RP2040 ROM boot (*.uf2 *.bin *.elf)'
-        name, selected = QFileDialog.getOpenFileName(self, 'Load firmware', '', filters, filters.split(';;')[0])
+        default = filters.split(';;')[{'direct': 0, 'sdk': 1, 'rom': 2}[self.project.build_mode]]
+        name, selected = QFileDialog.getOpenFileName(self, 'Load firmware', '', filters, default)
         if not name or self.busy:
             return
         startup = 'rom' if selected.startswith('RP2040') else 'sdk' if selected.startswith('Pico SDK') else 'direct'
@@ -482,6 +523,7 @@ class Workflow:
                 if ok:
                     self.project.firmware = str(Path(name).resolve())
                     self.project.startup = startup
+                    self.project.build_startup = None
                     self.clear_breakpoints()
                     self._read_symbols(Path(name))
             self.request('load', loaded, path=Path(name), startup=startup, discard_flash=self.discard_flash)
@@ -508,7 +550,7 @@ class Workflow:
             if not self.project.linker:
                 linker.write_text(demo.linker())
             self.build_text = self.editor.toPlainText()
-            self.build_task = BuildTask(self.build_text, root / 'editor.c', root / 'editor.elf', linker, self.project.startup)
+            self.build_task = BuildTask(self.build_text, root / 'editor.c', root / 'editor.elf', linker, self.project.build_mode)
             self.build_thread = QThread(self)
             self.build_task.moveToThread(self.build_thread)
             self.build_thread.started.connect(self.build_task.run)
@@ -535,6 +577,7 @@ class Workflow:
             if ok:
                 self.project.firmware = str(path.resolve())
                 self.project.startup = startup
+                self.project.build_startup = None
                 self._read_symbols(path)
                 self.clear_breakpoints()
         def load():

@@ -49,6 +49,11 @@ hidden panels and exposes Advanced execution controls. Circuit edits have undo/r
 and stay pending until **Apply circuit + Reset** or **Apply + Run**. Edited C source
 shows when rebuilding is required; Python source shows its upload state.
 
+Choose **Startup → Direct load** or **ROM boot**, then press **F7** to build/load
+and **F5** to run. Direct code uses vectors and `reset_handler()`; ROM boot builds
+SDK `main()` code and executes B2 ROM plus boot2. **SDK shortcut** retains the
+existing SDK workflow. See [boot modes](docs/boot.md) for details.
+
 The [code editor](docs/editor.md) adds automatic indentation, bracket pairing,
 find/replace, completion, documentation, definitions and a Problems panel.
 Code mode uses the central area, with UART/build output below. Optional local
