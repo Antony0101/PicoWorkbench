@@ -1,5 +1,8 @@
 include CMakeLists.txt
 include README.md
+include LICENSE
+include THIRD_PARTY_NOTICES.md
+include CONTRIBUTING.md
 include Makefile
 include requirements-dev.lock
 recursive-include bindings *.py

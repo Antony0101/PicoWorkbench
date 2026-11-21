@@ -13,6 +13,11 @@ class Workspace:
         self.settings = getattr(self, 'settings', None) or QSettings('RP2040Lab', 'Desktop-v2')
         from .assistance import CodeAssistance
         self.assistance = CodeAssistance(self.editor, self.editor_pane, self.settings, self)
+        from .panels import PanelManager
+        self.panels = PanelManager(self, self.panels_menu)
+        self.panels.register_defaults()
+        self.inspector_action.toggled.connect(self.panels.refresh)
+        self.output_action.toggled.connect(self.panels.refresh)
         self.editor.textChanged.connect(self.document_changed)
         self.editor.undoAvailable.connect(lambda available: self.update_actions())
         self.editor.redoAvailable.connect(lambda available: self.update_actions())
@@ -25,9 +30,6 @@ class Workspace:
         self.scene.pending_changed.connect(self.connection_status.setText)
         self.workspace_tabs.currentChanged.connect(
             lambda index: self.set_workspace(self.workspace_tabs.tabText(index)))
-        self.inspector.currentChanged.connect(lambda index: self.inspector_choice.setCurrentIndex(index))
-        self.inspector_choice.currentIndexChanged.connect(self.inspector.setCurrentIndex)
-        self.inspector_choice.addItems([self.inspector.tabText(i) for i in range(self.inspector.count())])
         self.inspector.tabBar().hide()
         self.inspector.setAccessibleName('Chip and circuit inspector')
         self.view.setAccessibleName('Logical GPIO circuit canvas')
@@ -162,29 +164,29 @@ class Workspace:
         for index in range(self.workspace_tabs.count()):
             if self.workspace_tabs.tabText(index) == name:
                 self.workspace_tabs.setCurrentIndex(index)
-                if name == 'Code':
+                if name == 'Code' and self.panels.panels['editor'].host is None:
                     self.editor.setFocus()
                 return
 
     def set_workspace(self, name):
         tabs_focused = self.workspace_tabs.hasFocus()
         self.top_splitter.setVisible(name != 'Code')
-        self.editor_pane.setVisible(name != 'Circuit')
-        self.editor_area.setVisible(name != 'Circuit')
         self.inspector_action.setChecked(name != 'Code')
         self.output_action.setChecked(name == 'Debug')
-        self.assistance.activate(name != 'Circuit')
         if name == 'Code':
             self.vertical.setSizes([0, 700])
-            if not tabs_focused:
+            if not tabs_focused and self.panels.panels['editor'].host is None:
                 self.editor.setFocus()
         elif name == 'Debug':
             self.vertical.setSizes([420, 260])
             self.top_splitter.setSizes([650, 400])
-            self.inspector.setCurrentIndex(0)
+            cpu = self.panels.panels['cpu']
+            if cpu.host is None:
+                cpu.home.select(cpu)
         else:
             self.vertical.setSizes([500, 180])
             self.top_splitter.setSizes([800, 330])
+        self.panels.refresh()
         QTimer.singleShot(0, self.view.fit_canvas)
 
     def restore_preferences(self):
@@ -220,13 +222,9 @@ class Workspace:
             self.bus_inspector.filter.setText(self.settings.value('runtime/bus_filter', ''))
         except (TypeError, ValueError, OverflowError):
             self.reset_layout()
-        screen = self.screen() or QApplication.primaryScreen()
-        if screen:
-            available = screen.availableGeometry()
-            self.resize(min(self.width(), available.width()), min(self.height(), available.height()))
-            frame = self.frameGeometry()
-            if not available.contains(frame):
-                self.move(available.topLeft())
+        from .panels import fit_on_screen
+        fit_on_screen(self)
+        self.panels.restore(self.settings)
         QTimer.singleShot(0, self.view.fit_canvas)
 
     def save_preferences(self):
@@ -242,9 +240,11 @@ class Workspace:
             'runtime/bus_filter':self.bus_inspector.filter.text()}.items():
             self.settings.setValue(key, value)
         self.settings.setValue('workspace', self.current_workspace)
+        self.panels.save(self.settings)
         self.settings.sync()
 
     def reset_layout(self):
+        self.panels.dock_all()
         self.inspector_action.setChecked(True)
         self.output_action.setChecked(True)
         self.advanced_action.setChecked(False)

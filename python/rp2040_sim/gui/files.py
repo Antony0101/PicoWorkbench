@@ -202,7 +202,7 @@ class FilesPanel(QWidget):
             window.source_saved = text
             window.editor.setPlainText(text)
             window.document_changed()
-            window.select_workspace('Code')
+            window.panels.reveal('editor')
             self.status.setText('Opened Pico:' + result.path + ' · use Save to Pico for device changes')
         self.start('read', path, opened)
 

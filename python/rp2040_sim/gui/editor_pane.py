@@ -174,7 +174,7 @@ class EditorPane(QWidget):
         layout = QVBoxLayout(self)
         layout.setContentsMargins(0, 0, 0, 0)
         layout.setSpacing(0)
-        header = QHBoxLayout()
+        self.header = header = QHBoxLayout()
         self.title = QLabel('firmware.c · C')
         self.title.setMinimumWidth(0)
         self.title.setSizePolicy(QSizePolicy.Policy.Ignored, QSizePolicy.Policy.Preferred)

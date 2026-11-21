@@ -6,6 +6,26 @@ builds, UART stdio, and USB stdio disabled. The named workloads are
 the real SDK crt0, runtime initialization, GPIO, clocks, divider, timer and stdio
 libraries. Neither workload replaces the reset handler or `runtime_init`.
 
+## Install the build tools
+
+Skip this section to run bundled firmware. Building edited SDK/ROM C sources
+requires an ARM compiler, Newlib and CMake 3.25 or newer. On Ubuntu/Debian:
+
+```sh
+sudo apt install git gcc-arm-none-eabi libnewlib-dev libnewlib-arm-none-eabi
+.venv/bin/python -m pip install 'cmake>=3.25,<5'
+mkdir -p .tools
+git clone --branch 2.2.0 --depth 1 \
+    https://github.com/raspberrypi/pico-sdk.git .tools/pico-sdk-2.2.0
+export PICO_SDK_PATH="$PWD/.tools/pico-sdk-2.2.0"
+```
+
+If that checkout already exists, use it rather than cloning over it. The profile
+checks the SDK version. Optional SDK git submodules are not required by these
+non-USB C examples. `PICO_SDK_PATH` can also point to another local checkout of
+the same version. See [Getting started](getting-started.md) for the base simulator
+installation and [code assistance](editor.md) for editor analysis tools.
+
 ## Run and edit
 
 Bundled firmware needs no SDK or cross compiler:
@@ -25,7 +45,7 @@ in their identity and cannot replay with a different mode.
 F7 builds an edited single C source using the packaged SDK CMake profile.
 It uses a scratch project, preserves the user's source, and supports cancellation
 of configure/build subprocesses. Set `PICO_SDK_PATH` to a **2.2.0** checkout;
-the prepared workspace finds `.tools/pico-sdk-2.2.0` automatically. CMake 3.25+,
+the application also detects `.tools/pico-sdk-2.2.0` in a source checkout. CMake 3.25+,
 ARM GCC, and ARM Newlib headers/libraries are required for builds. For Ubuntu
 toolchains, these are supplied by `gcc-arm-none-eabi`, `libnewlib-dev` and
 `libnewlib-arm-none-eabi`. The SDK's optional git submodules are not needed for

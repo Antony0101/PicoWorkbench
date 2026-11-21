@@ -132,11 +132,14 @@ the bindings as BSD. Its [upstream license](https://github.com/unicorn-engine/un
 and [release README](https://github.com/unicorn-engine/unicorn/blob/2.1.4/README.md)
 are the relevant native dependency references. Qt Essentials reports LGPL-3.0-only,
 GPL-2.0-only, or GPL-3.0-only alternatives. CFFI reports MIT-0; pyelftools reports
-public domain. No project-wide distribution license has been selected here.
+public domain. Original project code and documentation use
+[`GPL-2.0-or-later`](../LICENSE). See the
+[third-party inventory](../THIRD_PARTY_NOTICES.md) for dependency and bundled-asset
+notices; their terms remain separate from the original project license.
 
 The backend is dynamically linked, not copied into this repository. Packaging
-produces a local Linux Python wheel; public distribution and additional platforms
-have not been configured.
+produces a local Linux Python wheel. Additional platforms and a public package
+release pipeline have not been validated.
 
 The bundled SDK firmware contains compiled Pico SDK 2.2.0, pico_printf and
 compiler/C runtime code. Packaged assets include `SDK-NOTICES.txt` and

@@ -3,7 +3,7 @@
 All implemented hardware uses functional or approximate scheduled timing. No
 subsystem is advertised as cycle accurate. Validation is against the included
 fixtures and documented register semantics; no physical Pico comparison has been
-performed in this workspace.
+performed. See [Validation](validation.md) for the tested environments and evidence.
 
 | Subsystem | Implemented | Limits |
 | --- | --- | --- |
@@ -29,6 +29,7 @@ performed in this workspace.
 | UART0/1 | Byte TX/RX, RX queue, FR, configuration/full IRQ-mask storage, clearable TX interrupt and RX IRQ | Instant TX, simplified FIFO/threshold behavior; non-RX/TX error/modem sources stay inactive; no baud waveform or pin routing |
 | I2C0/1 | 7-bit master, TAR/ENABLE/CON, DATA_CMD, RX FIFO, STOP/abort status and IRQs | Immediate transfers; no slave mode, bit-banging, arbitration, stretching, or detailed FIFO timing |
 | I2C sensor | Python 256-byte register device, pointer writes, reads, auto-increment, repeated start/stop | Simulated generic device: register 0 ID=0x42, register 1 temperature=25; not a specific sensor chip |
+| SSD1306 OLED | 128×64 I²C display, framebuffer RAM, addressing modes, initialization, inversion/contrast/orientation and live snapshots | Addresses 0x3C/0x3D; no SPI OLED or hardware scrolling; see [runtime tools](runtime-tools.md) |
 | SPI0/1 | 8-bit Motorola master frames, configuration, RX FIFO, threshold IRQs | Byte transfers only; no SCK waveform, slave mode, DMA or automatic chip select |
 | SPI loopback | Python byte echo, validates wired TX/RX/SCK mux and active-low SIO chip select | Not an electrical short or display controller |
 | PWM | Eight free-running slices, A/B compare/invert, DIV, TOP, counter, wrap IRQ, GPIO output | No phase-correct/gated modes, phase advance/retard, or double-buffered compare updates |
@@ -36,6 +37,7 @@ performed in this workspace.
 | DMA | Twelve channels, transfer widths, rings, byte swap, alias/reload triggers, chaining, pause/abort, bus errors, two IRQ lines, PIO/ADC/fractional-timer pacing and copied inspection | One functional beat per root tick; FIFO-level pacing, instant abort; no other DREQs, checksum sniffing, bus contention or silicon pipeline timing; see [DMA details](dma.md) |
 | ADC | Manual 12-bit channels, single/continuous conversions, result, FIFO, threshold IRQ, overflow and DMA DREQ | No analog solver, noise, round-robin, voltage-to-sample physics or temperature calibration |
 | Projects | Versioned JSON, stable endpoints, geometry, component addresses, relative path rebasing | Pico logical board profile only; no live machine save states |
+| Runtime tools | UART serial plots, I²C/SPI transaction capture, MicroPython file operations and detachable GUI panels | Bounded captures; file actions require a confirmed idle UART REPL; [details](runtime-tools.md) |
 | Replay | Timestamped button, UART, and ADC inputs with firmware/circuit hashes | Starts from reset; no random devices or host-time-dependent models |
 
 Unsupported registers, instructions, and modes stop with an address/operation
@@ -56,7 +58,7 @@ validation rejects trace overflow.
 Watchdog countdown/reset, USB transfers/BOOTSEL USB, general Pico SDK/Arduino
 compatibility, stock USB MicroPython/CircuitPython compatibility, and native
 desktop validation for macOS/Windows. Physical Pico comparison is outstanding;
-the user confirmed this workspace has Linux only and no attached Pico.
+Linux/WSLg is the validated desktop environment.
 
 ## Reference sources
 

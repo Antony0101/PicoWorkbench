@@ -14,7 +14,7 @@ batches and early breakpoint stops, and exercise clock reset/persistence in the 
 
 Firmware compiler tests skip if ARM GCC is absent. GUI tests skip if Qt is absent.
 The fully prepared environment runs all checks.
-The current Linux workspace passes 346 tests. Phase 2 adds thirteen
+The Phase 2 baseline passed 346 tests. Phase 2 adds thirteen
 document/desktop/trace checks to the 333-test Phase 1 baseline.
 Context-menu checks exercise viewport right clicks, component placement/editing,
 selection-aware deletion, connecting/disconnecting ports, mutation guards while
@@ -41,6 +41,31 @@ flash persistence, and exercise RTC calendar/alarm behavior. MicroPython tests
 run arithmetic/math, GPIO/sleep, ADC, RTC, files, raw uploads/errors, deterministic
 replay, CLI/export and GUI execution/interruption. Its exact build dependencies
 and asset hashes are recorded in [the profile](micropython.md).
+
+### Detachable panels — 2026-11-21
+
+`RP2040_TEST_LANGUAGE_SERVERS=1 .venv/bin/pytest -q` passed **411 tests** in
+188.39 seconds. The 17 panel checks cover all fifteen tools, repeated detach/dock,
+tab order, empty groups, workspace changes, source/undo preservation, session and
+modal shortcut routing, keyboard context menus, preference restoration, invalid
+settings, simulated monitor removal, and cancelled/accepted session shutdown.
+Real firmware checks build C through floating-editor F7, verify F9 breakpoints
+and edits during compilation, and run C/MicroPython temperature dashboards with
+floating serial, plot, bus, GPIO and CPU views. MicroPython file upload/open keeps
+the editor window and uploaded-program identity intact. Real clangd and Pyright
+checks exercise completion, hover, header/stub previews, diagnostics and editor
+document/client identity across redocking. `make native` also passed its C engine
+contract (1/1).
+
+The styled desktop was checked on **WSLg/Wayland at 1366×768**, switching all
+workspaces with floating editor, plot and memory windows at 11, 16 and 24-point
+editor text. Redocking and the source/output layout passed at the same sizes.
+Offscreen checks also passed with 125% and 150% Qt scaling. The
+[desktop guide](desktop.md#separate-panel-windows) includes a WSLg editor capture.
+Only one physical display was available: real multi-monitor placement remains
+an open external check; removed/secondary monitor recovery has automated geometry
+coverage. Physical Pico comparisons and the earlier participant/screen-reader
+accessibility checks remain open.
 
 After native source changes, rebuild the extension before running Python checks:
 

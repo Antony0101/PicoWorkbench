@@ -1,6 +1,7 @@
 # C and MicroPython editor
 
 Launch `.venv/bin/rp2040-sim gui` and select the **Code** workspace tab.
+For a fresh checkout, first follow [Getting started](getting-started.md).
 The source occupies the central area. **Debug** restores the circuit and inspector
 alongside it; switching layouts preserves the source, cursor and undo history.
 
@@ -31,7 +32,7 @@ one operation. Normal clipboard, selection and input-method behavior uses Qt.
 | Escape | Dismiss completion, documentation or search |
 | F7 | Build and load C, or upload and run MicroPython |
 | F9 | Toggle a supported mapped C breakpoint |
-| Ctrl+Z / Ctrl+Shift+Z | Undo / redo text when editing; otherwise circuit history |
+| Ctrl+Z / Ctrl+Shift+Z | Undo / redo focused editable text; circuit history when canvas/Properties controls have focus |
 | Ctrl+S / Ctrl+Shift+S | Save project / save source as |
 
 Find supports case sensitivity, whole words and Python regular expressions.

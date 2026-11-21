@@ -25,7 +25,49 @@ preferences. They do not change project JSON, chip timing or recorded input.
 Reset layout restores a usable Circuit workspace. Playback speed changes the
 relationship to wall time; applying a functional CPU clock resets execution.
 
-![Circuit workspace on Linux](images/phase2-desktop.png)
+![Circuit workspace on Linux](images/desktop.png)
+
+## Separate panel windows
+
+Use the **↗** button beside the editor header, output tabs or inspector selector
+to open the current panel in a separate window. Output tabs and the editor header
+also offer **Open in separate window** through their context menus. The circuit
+canvas and main simulation controls stay in the main window.
+
+The editor, all six output tools and all eight inspectors detach independently.
+Every window shares the same running chip, source buffer and capture history.
+Circuit/Code/Debug switches affect docked panels; floating panels stay visible.
+The complete editor moves together, including Find, Problems and code assistance.
+
+Use **Dock back**, or close the floating window, to return a panel to its original
+position. Its destination becomes visible; returning the editor from Circuit
+selects Code, and returning an inspector from Code selects Debug. Closing a panel
+does not discard source, stop execution or prompt to save. **Show main window**
+brings the circuit and main controls forward.
+
+**View → Panels** lists every tool, including detached ones. Each entry offers
+**Show / Focus**, **Open in separate window** and **Dock back**. **Dock all panels**
+returns everything without changing the workspace. **View → Reset layout** also
+returns every panel and restores the default Circuit layout. Empty output or
+inspector groups collapse; their visibility toggles are disabled until a tool
+returns. Ctrl+J controls the docked output group only.
+
+Save, Run, Pause, F7, F9 and instruction-step shortcuts work from floating windows
+for their owning session. Editor shortcuts remain local to the editor. Text undo
+affects the focused editable field; circuit undo requires focus on the canvas or
+Properties controls. F9 still requires matching C source and debug information.
+Build errors, diagnostic clicks and opening Pico files find the existing editor or
+output window wherever it is located.
+
+Floating status, positions, sizes and selected docked tools are per-user settings.
+They restore on the next launch. Windows from a removed monitor are moved back
+onto an available screen. Project files do not contain layout or capture data.
+Exact window placement remains subject to the window manager, especially on Wayland.
+Closing the main window applies the existing source and flash save protections
+and closes the entire session; cancelling keeps all panel windows available.
+Panels return to fixed home positions; arbitrary drag docking is not supported.
+
+![The existing editor running in a separate window](images/detached-editor.png)
 
 ## Edit, apply and recover
 
@@ -48,8 +90,8 @@ and clear breakpoints. ROM-mode circuit application retains modified flash files
 Modified SDK flash requires export and an explicit discard/replacement workflow;
 automatic SDK flash restoration is not supported.
 
-Ctrl+Z/Ctrl+Shift+Z undo/redo circuit changes when focus is outside editable text
-fields. Text undo/redo remains independent. Arrow keys
+Ctrl+Z/Ctrl+Shift+Z undo/redo circuit changes when focus is on the canvas or
+Properties controls. Editable text fields use their own undo/redo. Arrow keys
 move selected canvas parts; Ctrl+D duplicates selected components and internal
 connections. Delete removes the selection. Shift+F10/the keyboard menu key opens
 a context menu for the focused or selected canvas object on supporting platforms.

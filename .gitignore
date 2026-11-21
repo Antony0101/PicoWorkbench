@@ -13,3 +13,5 @@ __pycache__/
 *.png
 !docs/images/phase2-desktop.png
 !docs/images/code-editor.png
+!docs/images/detached-editor.png
+!docs/images/desktop.png

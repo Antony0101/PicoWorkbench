@@ -133,6 +133,7 @@ class Window(Workflow, Workspace, QMainWindow):
         self.device_source_saved = None
         self.files_busy = False
         self._display_frames = {}
+        self.session_actions = []
         self._make_ui()
         if self.project.builtin == "pio_blink":
             self.inspector.setCurrentWidget(self.pio_inspector)
@@ -171,6 +172,7 @@ class Window(Workflow, Workspace, QMainWindow):
         if shortcut:
             action.setShortcut(shortcut)
         action.triggered.connect(callback)
+        self.session_actions.append(action)
         return action
 
     def _make_ui(self):
@@ -212,6 +214,7 @@ class Window(Workflow, Workspace, QMainWindow):
         edit.addActions([self.undo_action, self.redo_action,
                          self.action('Duplicate selected', self.duplicate_selected, 'Ctrl+D')])
         view_menu = self.menuBar().addMenu('View')
+        self.panels_menu = view_menu.addMenu('Panels')
         self.inspector_action = self.action('Inspector', lambda: None)
         self.output_action = self.action('Output panel', lambda: None, 'Ctrl+J')
         self.advanced_action = self.action('Advanced execution controls', lambda: None)
@@ -482,14 +485,15 @@ class Window(Workflow, Workspace, QMainWindow):
         panel_layout.setContentsMargins(0, 0, 0, 0)
         self.inspector_choice = QComboBox()
         self.inspector_choice.setAccessibleName('Inspector panel')
-        panel_layout.addWidget(self.inspector_choice)
+        self.inspector_header = QHBoxLayout()
+        self.inspector_header.addWidget(self.inspector_choice, 1)
+        panel_layout.addLayout(self.inspector_header)
         scroll = QScrollArea()
         scroll.setWidgetResizable(True)
         scroll.setMinimumSize(270, 100)
         scroll.setWidget(inspector)
         panel_layout.addWidget(scroll)
         top.addWidget(self.inspector_panel)
-        self.inspector_action.toggled.connect(self.inspector_panel.setVisible)
         self.inspector_action.setChecked(True)
         top.setSizes([1040, 350])
 
@@ -549,9 +553,6 @@ class Window(Workflow, Workspace, QMainWindow):
         self.editor_area.setSizes([500, 180])
         vertical.addWidget(self.editor_area)
         vertical.setSizes([650, 300])
-        self.output_action.toggled.connect(self.tabs.setVisible)
-        self.output_action.toggled.connect(lambda visible: self.editor_area.setVisible(
-            visible or self.current_workspace != 'Circuit'))
         self.output_action.setChecked(True)
         central = QWidget()
         central_layout = QVBoxLayout(central)
@@ -578,7 +579,7 @@ class Window(Workflow, Workspace, QMainWindow):
         self.recovery = QWidget()
         recovery_layout = QHBoxLayout(self.recovery)
         recovery_layout.setContentsMargins(4, 0, 4, 0)
-        for title, callback in [('Details', lambda: self.tabs.setCurrentWidget(self.logs)),
+        for title, callback in [('Details', lambda: self.panels.reveal('build')),
                                 ('ROM / compiler setup', self.show_setup),
                                 ('Export runtime flash…', self.export_flash),
                                 ('Dismiss', lambda: (self.fault_banner.hide(), self.recovery.hide()))]:
@@ -610,7 +611,13 @@ class Window(Workflow, Workspace, QMainWindow):
     def output_context_menu(self, editor, position):
         actions = ([*self.editor_pane.actions, self.build_action, self.cancel_action] if editor is self.editor else
                    [self.interrupt_action] if editor is self.serial else [])
-        return text_menu(editor, position, actions, clear=editor in (self.serial, self.logs))
+        menu = text_menu(editor, position, actions, clear=editor in (self.serial, self.logs))
+        key = 'editor' if editor is self.editor else 'serial' if editor is self.serial else 'build'
+        menu.addSeparator()
+        floating = self.panels.panels[key].host is not None
+        menu.addAction('Dock back' if floating else 'Open in separate window',
+                       lambda: self.panels.dock(key) if floating else self.panels.detach(key))
+        return menu
 
     # Register slots on the QObject subclass so Qt always dispatches GUI work
     # on its owning thread, including handlers implemented in Python mixins.
@@ -641,6 +648,8 @@ class Window(Workflow, Workspace, QMainWindow):
 
     @Slot(QWidget, QWidget)
     def editor_focus_changed(self, old, new):
+        if hasattr(self, 'panels') and not self.panels.owns_widget(new):
+            return
         self.update_actions()
 
 
@@ -736,8 +745,7 @@ class Window(Workflow, Workspace, QMainWindow):
     @Slot(str)
     def error(self, message):
         self.logs.appendPlainText(message)
-        self.output_action.setChecked(True)
-        self.tabs.setCurrentWidget(self.logs)
+        self.panels.reveal('build')
         self.status.setText("ERROR · " + message)
         first = message.splitlines()[0] if message else 'Operation failed'
         self.fault_banner.setText(first[:240] + ' · See Build + diagnostics for details. Help → ROM and compiler setup covers dependencies.')
@@ -746,7 +754,7 @@ class Window(Workflow, Workspace, QMainWindow):
         match = re.search(r'(?:editor\.c|firmware\.c):(\d+)(?::\d+)?:', message)
         if match and getattr(self, 'build_text', None) == self.editor.toPlainText():
             self.output_action.setChecked(True)
-            self.select_workspace('Code')
+            self.panels.reveal('editor')
             self.editor.go_to_line(int(match.group(1)))
 
     def _read_symbols(self, path):
@@ -801,8 +809,7 @@ def launch(project_path=None, screenshot=None):
         QTimer.singleShot(200, lambda: window.send("run"))
 
         def capture():
-            window.output_action.setChecked(True)
-            window.tabs.setCurrentWidget(window.waveform)
+            window.panels.reveal('logic')
             app.processEvents()
             screenshot.parent.mkdir(parents=True, exist_ok=True)
             window.grab().save(str(screenshot))

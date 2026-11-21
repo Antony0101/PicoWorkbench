@@ -16,7 +16,14 @@ from .document import CircuitHistory, fingerprint
 class Workflow:
     def text_undo_target(self):
         focus = QApplication.focusWidget()
+        if hasattr(self, 'panels') and not self.panels.owns_widget(focus):
+            return None
         return focus if isinstance(focus, (QLineEdit, QPlainTextEdit)) and not focus.isReadOnly() else None
+
+    def circuit_undo_target(self):
+        focus = QApplication.focusWidget()
+        return focus is not None and (focus is self.view or self.view.isAncestorOf(focus) or
+                                      focus is self.properties_panel or self.properties_panel.isAncestorOf(focus))
 
     @property
     def circuit_pending(self):
@@ -59,6 +66,7 @@ class Workflow:
             return
         dirty = self.document_dirty
         self.setWindowTitle(f'{self.project.name}{" *" if dirty else ""} — RP2040 Lab')
+        self.panels.update_titles()
         self.project_label.setText(self.project.name + (' *' if dirty else ''))
         python = self.project.builtin == 'micropython'
         language = 'python' if python else 'c'
@@ -107,8 +115,9 @@ class Workflow:
         target = self.text_undo_target()
         editing = target is not None
         document = target.document() if isinstance(target, QPlainTextEdit) else target
-        self.undo_action.setEnabled(not self.busy and (document.isUndoAvailable() if editing else not self.running and self.history.index > 0))
-        self.redo_action.setEnabled(not self.busy and (document.isRedoAvailable() if editing else not self.running and self.history.index < len(self.history.entries)))
+        circuit = self.circuit_undo_target()
+        self.undo_action.setEnabled(not self.busy and (document.isUndoAvailable() if editing else circuit and not self.running and self.history.index > 0))
+        self.redo_action.setEnabled(not self.busy and (document.isRedoAvailable() if editing else circuit and not self.running and self.history.index < len(self.history.entries)))
         self.undo_action.setText('Undo typing' if editing else 'Undo circuit')
         self.redo_action.setText('Redo typing' if editing else 'Redo circuit')
         if not editing and self.history.index:
@@ -240,7 +249,7 @@ class Workflow:
         target = self.text_undo_target()
         if target is not None:
             target.undo()
-        elif not self.running and not self.busy:
+        elif self.circuit_undo_target() and not self.running and not self.busy:
             self.history.undo(self.project)
             self.refresh_circuit()
 
@@ -250,7 +259,7 @@ class Workflow:
         target = self.text_undo_target()
         if target is not None:
             target.redo()
-        elif not self.running and not self.busy:
+        elif self.circuit_undo_target() and not self.running and not self.busy:
             self.history.redo(self.project)
             self.refresh_circuit()
 
@@ -407,10 +416,10 @@ class Workflow:
                 self.fault_banner.hide()
                 self.recovery.hide()
                 if project.builtin == 'micropython':
-                    self.select_workspace('Code')
+                    self.panels.reveal('editor')
                 for builtin, inspector in [('pio_blink', self.pio_inspector), ('dma_pio', self.dma_inspector), ('multicore', self.cores_inspector)]:
                     if project.builtin == builtin:
-                        self.inspector.setCurrentWidget(inspector)
+                        self.panels.reveal(self.panels.key_for_widget(inspector))
             self.request('project', loaded, project=deepcopy(project), source=text,
                          discard_flash=self.discard_flash)
             self.discard_flash = False
@@ -487,7 +496,7 @@ class Workflow:
                 self.project.source = str(self.source_path)
                 self.source_saved = text
                 self.editor.setPlainText(text)
-                self.select_workspace('Code')
+                self.panels.reveal('editor')
             except (OSError, UnicodeError) as error:
                 self.error(str(error))
 
@@ -539,8 +548,7 @@ class Workflow:
         if self.project.builtin == 'micropython':
             source = self.editor.toPlainText()
             self.request('python', lambda ok: None, source=source)
-            self.output_action.setChecked(True)
-            self.tabs.setCurrentWidget(self.serial_panel)
+            self.panels.reveal('serial')
             return
         from .app import BuildTask
         try:
@@ -561,8 +569,7 @@ class Workflow:
             self.build_thread.finished.connect(self.build_finished)
             self.cancel_action.setEnabled(True)
             self.build_thread.start()
-            self.output_action.setChecked(True)
-            self.tabs.setCurrentWidget(self.logs)
+            self.panels.reveal('build')
             self.update_actions()
         except OSError as error:
             self.error(str(error))
@@ -683,6 +690,7 @@ class Workflow:
             if not self.thread.wait(5000) or self.build_thread is not None and not self.build_thread.wait(5000):
                 event.ignore()
                 return
+            self.panels.shutdown()
             event.accept()
             return
         event.ignore()

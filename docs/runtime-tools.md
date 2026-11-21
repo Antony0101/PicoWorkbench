@@ -117,7 +117,7 @@ limited to 1 MB. Larger files can still be downloaded in chunks. Flash capacity,
 UART/interpreter speed and normal MicroPython filesystem errors apply.
 
 To install the standalone dashboard, upload the bundled driver as
-`/lib/ssd1306.py` and upload `assets/dashboard.py` as `/main.py`, adding
+`/lib/ssd1306.py` and upload `python/rp2040_sim/assets/dashboard.py` as `/main.py`, adding
 `from ssd1306 import SSD1306_I2C` at its top. Create `/lib` first. Reset runs
 `main.py`; use Interrupt before further file operations. **Export flash image**
 preserves device files for another session. Saving project JSON preserves source

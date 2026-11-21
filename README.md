@@ -1,292 +1,117 @@
 # RP2040 Lab
 
-A desktop RP2040 firmware simulator with a C engine, Python controller, and
-PySide6 GUI. Load real ARM ELF firmware, run or step it, inspect registers and
-memory, wire digital components, and watch UART output and GPIO waveforms.
+Run C firmware or MicroPython on a simulated RP2040, connect virtual peripherals,
+and inspect the chip while your program runs. RP2040 Lab provides a desktop GUI
+and a command-line interface, with a C simulation engine and a Python/PySide6 UI.
 
-This is a working first release of [Phase 1](plan/phase-1/README.md).
-[Phase 2](plan/phase-2/README.md) adds desktop UI/UX improvements; see the
-[development phases](plan/README.md) for plans and their status.
-[Phase 3](plan/phase-3/README.md) adds a live OLED, serial plotter, bus inspector
-and interpreter-backed MicroPython files; see [runtime tools](docs/runtime-tools.md).
-Real B2 ROM boot, UF2 loading and a pinned MicroPython UART profile are supported.
-USB transfers and additional OS/hardware validation remain outside the delivered scope.
-The current engine uses functional timing; it does
-not claim complete chip compatibility or cycle accuracy.
+![RP2040 Lab circuit workspace](docs/images/desktop.png)
 
-## Run in this workspace
+**Status:** experimental, with tested firmware examples. Linux x86-64 and WSLg
+are the validated platforms. The simulator uses approximate, deterministic
+timing; it is not cycle accurate and does not run every Pico application.
+See the [compatibility matrix](docs/compatibility.md) before choosing a workload.
 
-The virtual environment, native extension, GUI dependencies, and local ARM
-compiler have been prepared:
+## What you can do
 
-```sh
-.venv/bin/rp2040-sim gui
-```
+- Run, pause and step real ARM firmware; inspect registers, memory and breakpoints.
+- Wire LEDs, buttons, sensors, an SSD1306 OLED and a SPI loopback device.
+- Inspect GPIO traces, plot serial values and examine I²C/SPI exchanges.
+- Edit one C or MicroPython source file, with optional local code assistance.
+- Use the MicroPython UART REPL and manage files in simulated flash.
+- Open editor, output and inspector panels in separate windows sharing one chip.
+- Save circuit projects, export flash and replay recorded inputs from the CLI.
 
-Press **Run**, then hold the button to change the LED's blink rate. Open
-**File → Examples → New peripheral workbench** for the integrated I2C sensor, SPI loopback,
-PWM LED, and ADC demonstration. **File → Examples → New PIO blink demo** runs a PIO-driven
-LED while the CPU sleeps. **File → Examples → New DMA to PIO demo** feeds a PIO waveform
-through DMA and reports its completion interrupt. The included demos run without
-compiling firmware. **File → Examples → New two-core demo** demonstrates shared SRAM,
-spinlocks and FIFO interrupts.
-**File → Examples → New Pico SDK blink** and **New Pico SDK UART** run genuine SDK 2.2.0
-C startup and runtime code using the supported SDK ELF shortcut.
-**File → Examples → New ROM boot blink** executes the B2 ROM and boot2.
-**File → Examples → New MicroPython project** opens a Python editor and UART REPL; press
-**F7 / Run Python** to execute the source. These use the locally prepared B2 ROM.
+PIO, DMA and two-core examples are included. Core-0 B2 ROM boot is supported
+following a separate ROM preparation step. USB/BOOTSEL transfers, an analog circuit
+solver and general Arduino/CircuitPython compatibility are not implemented.
 
-Right-click the circuit background to add a component at that location. Component
-menus offer editing and deletion; port menus connect or disconnect wires. The
-circuit menu also offers Run/Pause/Step/Reset and canvas fitting. Circuit edits
-are available while paused. Right-click inspection tables to copy values or a
-table, the editor to build/run, serial or diagnostic output to copy/clear it,
-and the logic analyzer to zoom or clear its displayed trace.
+## Quick start on Linux
 
-Use the **Circuit / Code / Debug** workspace tabs to focus the layout. Circuit
-gives the canvas the available height; Code expands the editor. View restores
-hidden panels and exposes Advanced execution controls. Circuit edits have undo/redo
-and stay pending until **Apply circuit + Reset** or **Apply + Run**. Edited C source
-shows when rebuilding is required; Python source shows its upload state.
+You need **Python 3.10+**, a C compiler, matching Python development headers and a
+working Linux desktop display. Python 3.12 on Linux x86-64 is the tested setup.
+No physical Pico, ARM compiler or Pico SDK is needed to run the bundled C demos.
 
-Choose **Startup → Direct load** or **ROM boot**, then press **F7** to build/load
-and **F5** to run. Direct code uses vectors and `reset_handler()`; ROM boot builds
-SDK `main()` code and executes B2 ROM plus boot2. **SDK shortcut** retains the
-existing SDK workflow. See [boot modes](docs/boot.md) for details.
-
-The [code editor](docs/editor.md) adds automatic indentation, bracket pairing,
-find/replace, completion, documentation, definitions and a Problems panel.
-Code mode uses the central area, with UART/build output below. Optional local
-clangd/Pyright services provide C and MicroPython intelligence; **Code assistance…**
-provides setup and path selection.
-
-Projects embed the source buffer. Saving a source file and exporting runtime
-flash are separate actions. Closing or replacing unsaved work offers Save,
-Discard or Cancel. See the [desktop workflow](docs/desktop.md) for shortcuts,
-properties, trace measurements and supported limits.
-
-## Install on Linux
-
-Requires Python 3.10+, a host C compiler, Python development headers, and the
-usual Qt desktop libraries. An ARM cross compiler is needed only to build edited
-firmware, not to run the bundled demos.
-
-On Ubuntu/Debian, the host development packages are `build-essential`,
-`python3-dev`, and `python3-venv`; the firmware compiler is `gcc-arm-none-eabi`.
-
-```sh
-python3 -m venv .venv
-.venv/bin/python -m pip install -e '.[gui,dev]'
-.venv/bin/rp2040-sim gui
-```
-
-`ARM_CC` can name an ARM GCC executable outside `PATH`. In this prepared
-workspace, `.tools/arm/usr/bin/arm-none-eabi-gcc` is found automatically. The local
-tools and virtual environment are ignored by version control.
-
-Linux x86-64 is the validated platform. Native library discovery currently uses
-the shared library and headers shipped in the pinned Unicorn Python wheel.
-
-### WSL display troubleshooting
-
-The GUI requires a working desktop display, such as
-[WSLg](https://learn.microsoft.com/en-us/windows/wsl/tutorials/gui-apps).
-On WSL, startup automatically uses the Wayland socket in
-`/mnt/wslg/runtime-dir` if it is missing from `XDG_RUNTIME_DIR`.
-An explicit `QT_QPA_PLATFORM` setting disables this automatic selection.
-To select the WSLg socket manually:
-
-```sh
-WAYLAND_DISPLAY=/mnt/wslg/runtime-dir/wayland-0 QT_QPA_PLATFORM=wayland \
-    .venv/bin/rp2040-sim gui
-```
-
-If you prefer X11 and Qt reports that its `xcb` platform plugin cannot load,
-install the [Qt X11 runtime libraries](https://doc.qt.io/qt-6/linux-requirements.html).
-On Ubuntu/Debian, these packages cover the dependencies missing from a minimal
-WSL installation:
+On Ubuntu/Debian, install the build prerequisites:
 
 ```sh
 sudo apt update
-sudo apt install libxcb-cursor0 libxkbcommon-x11-0 libxcb-icccm4 \
-    libxcb-util1 libxcb-image0 libxcb-keysyms1 libxcb-render-util0 \
-    libxcb-shape0 libxcb-xkb1
-QT_QPA_PLATFORM=xcb .venv/bin/rp2040-sim gui
+sudo apt install build-essential python3-dev python3-venv
 ```
 
-## Desktop workflow
-
-- **F5** runs, **F6** pauses, **F10** steps, and **Ctrl+R** resets.
-- **Playback** selects a target speed from **0.01× to 4×**. For example, 0.1×
-  advances about one virtual second per ten real seconds. Change it while running
-  without resetting the chip or changing firmware event timestamps. Actual speed
-  depends on host performance and the configured CPU clock; long host stalls do
-  not trigger unlimited catch-up. Playback is a session setting.
-- **CPU clock** sets the functional instruction clock from **1 kHz to 133 MHz**.
-  Pause, enter a frequency, then click **Apply + Reset** to reload the currently
-  loaded firmware, reset chip state/input recording, and clear breakpoints.
-  The frequency is saved with the project. This changes firmware timing.
-- **Run N** executes the selected number of additional instructions, then pauses.
-  It follows the playback speed and stops early at breakpoints or errors.
-  Pause cancels the remaining count; Run resumes without an instruction limit.
-- **File → Load firmware ELF** loads an existing executable. Choose its
-  **Pico SDK ELF — skip boot2** filter for the supported SDK profile.
-- Edit the C source and press **F7 / Build + Load** to compile a scratch copy.
-  Build diagnostics appear in the bottom panel; Cancel build stops the compiler.
-- Add a component, then click two signal ports to connect them. Drag parts while
-  paused; select a part or wire and press Delete to remove it. Structural circuit
-  changes reset execution. Double-click a sensor to change its address.
-- Use **CPU** for registers and address/function breakpoints, **Memory** for
-  side-effect-free inspection, and **I/O** for ADC sliders and PWM configuration.
-- Use **PIO** to select a block/state machine and inspect PC, scratch/shift
-  registers, FIFO contents, stalls, clock configuration, and decoded instruction
-  memory. Inspection never consumes FIFO data.
-- The bottom tabs contain source, UART0, the logic analyzer, and build output.
-  Scroll over the analyzer to zoom its virtual-time window. Ctrl+wheel zooms the
-  circuit canvas.
-- Save circuit projects as JSON. Export timestamped input recordings from the
-  File menu for headless replay. Saving a project also preserves the editor text;
-  compiling it is a separate action.
-
-The board drawing exposes logical chip GPIOs, including internal Pico signals;
-it is not a physical header-placement diagram. LEDs and buttons are logical
-models, with no electrical current or analog circuit solver.
-
-## Headless execution
+Clone this repository or extract its source archive, then run these commands
+from the repository's root directory:
 
 ```sh
-# Bundled blink firmware, one second of virtual time
-.venv/bin/rp2040-sim run --duration-ms 1000 --trace build/blink.jsonl
+python3 -m venv .venv
+.venv/bin/python -m pip install --upgrade pip
+.venv/bin/python -m pip install -e '.[gui]'
+.venv/bin/rp2040-sim gui
+```
 
-# Integrated workbench: no cross compiler required
+Installation downloads Python dependencies and compiles the native engine.
+For minimal Linux/WSL installations, see the
+[installation and display guide](docs/getting-started.md) for Qt runtime packages
+and troubleshooting. Native Windows and macOS builds are not validated.
+
+## Try your first circuit
+
+1. Launch the GUI and press **F5 / Run**. The bundled LED example starts blinking.
+2. Hold the circuit's button to make the LED blink faster; release it to slow down.
+3. Choose **Debug**, then **Logic analyzer** in the output area, to inspect GPIO25.
+4. Press **F6 / Pause** before editing the circuit. Right-click to add components
+   or click two ports to wire them; use **Apply circuit + Reset** to apply wiring.
+5. Save the project with **Ctrl+S**. It includes the circuit and source buffer;
+   exporting runtime flash and saving a host source file are separate actions.
+
+The **Circuit**, **Code** and **Debug** tabs change the layout. **Ctrl+J** toggles
+docked output. Use **↗** or **View → Panels** to open a tool in another window;
+close that window to dock it back. **View → Reset layout** restores the defaults.
+
+To edit and rebuild C, [install the ARM toolchain](docs/getting-started.md#build-your-own-c-code).
+**F7** builds and loads the source; **F5** runs it. The Startup selector chooses
+Direct load, ROM boot or the SDK shortcut. These modes require different source
+entry points; the [boot guide](docs/boot.md) explains which to choose.
+
+For MicroPython, first [prepare the B2 ROM](docs/boot.md#prepare-the-rom-once),
+then open **File → Examples → New MicroPython project** and press **F7 / Run Python**.
+The bundled UART firmware is a specific tested profile; stock USB firmware is
+not supported. See the [MicroPython guide](docs/micropython.md).
+
+## Run without a GUI
+
+For a headless-only installation, use `.venv/bin/python -m pip install -e .`
+instead of the GUI installation command above. Run blink or a named example:
+
+```sh
+.venv/bin/rp2040-sim run --duration-ms 1000
 .venv/bin/rp2040-sim run --project examples/workbench.json --duration-ms 1000
-
-# Replay an exported workbench input recording
-.venv/bin/rp2040-sim run --project examples/workbench.json \
-    --replay inputs.json --duration-ms 1000 --trace build/replay.jsonl
 ```
 
-UART bytes go to stdout; the final execution summary goes to stderr. Replay
-requires matching firmware, circuit configuration, engine version, and a duration
-that includes every recorded input. It starts from reset.
+UART output goes to stdout; the execution summary goes to stderr. Durations use
+simulated time. See [examples and CLI workflows](docs/examples.md) for trace
+export, replay, custom firmware and the OLED dashboards.
 
-## PIO demonstration
+## Documentation
 
-```sh
-.venv/bin/rp2040-sim gui --project examples/pio_blink.json
-.venv/bin/rp2040-sim run --project examples/pio_blink.json \
-    --duration-ms 1100 --trace build/pio-blink.jsonl
-```
+Start with the [documentation index](docs/README.md), or choose a guide:
 
-Press **F5**. PIO0 SM0 drives GPIO25 at 2 Hz with the default 1 MHz clock:
-250 ms high, 250 ms low. The CPU stays in WFI while PIO continues. The **PIO**
-tab shows the two SET instructions, divider, PC, and delay counter; the logic
-analyzer shows the GPIO25 waveform. Try **0.1× Playback** for slow motion.
+| I want to… | Read |
+| --- | --- |
+| Install or fix a display/build error | [Getting started](docs/getting-started.md) |
+| Learn the GUI, shortcuts and separate windows | [Desktop workflow](docs/desktop.md) |
+| Edit code and set up clangd/Pyright | [Code editor](docs/editor.md) |
+| Try firmware examples or automate a run | [Examples and CLI](docs/examples.md) |
+| Use the OLED, plots, buses or Pico files | [Runtime tools](docs/runtime-tools.md) |
+| Understand supported hardware and limits | [Compatibility](docs/compatibility.md) |
+| Understand the implementation | [Engine and backend](docs/backend.md) |
+| Contribute or run checks | [Contributing](CONTRIBUTING.md) |
 
-The bundled ELF runs without a compiler or pioasm. Edit the included C source
-and press **F7** to rebuild it when ARM GCC is installed. See
-[PIO support and timing limits](docs/pio.md).
+Development plans and historical milestone evidence live under [plan/](plan/README.md).
+Current behavior is described in the user guides and compatibility matrix.
 
-## DMA to PIO demonstration
+## License
 
-```sh
-.venv/bin/rp2040-sim gui --project examples/dma_pio.json
-.venv/bin/rp2040-sim run --project examples/dma_pio.json --duration-ms 3100
-```
-
-Press **F5**. DMA feeds twelve words to PIO0 SM0, producing six GPIO25 pulses
-while the CPU sleeps. The **DMA** tab shows transfer progress and FIFO pacing.
-The completion interrupt prints `DMA complete` before PIO finishes draining its
-FIFO. See [DMA behavior and timing limits](docs/dma.md).
-
-## Two-core demonstration
-
-```sh
-.venv/bin/rp2040-sim gui --project examples/multicore.json
-.venv/bin/rp2040-sim run --project examples/multicore.json --duration-ms 1100
-```
-
-Press **F5**. Core 0 sends work every 250 ms; core 1 updates shared SRAM under a
-spinlock, drives GPIO25, and replies through its FIFO. Serial output shows
-increasing `Core 1 count` values. The **Cores** tab inspects either register bank,
-sleep state, NVIC, FIFO and spinlocks. **F10 / Step next** advances one instruction
-on the next runnable core; Run N counts instructions across both cores.
-
-Both cores share a deterministic instruction schedule with functional timing.
-The launch handshake uses a ROM protocol shim. See [two-core support and limits](docs/multicore.md).
-
-## Build custom firmware
-
-```sh
-.venv/bin/rp2040-sim build firmware/fixtures/blink.c -o build/custom.elf
-.venv/bin/rp2040-sim run build/custom.elf --duration-ms 1000
-
-.venv/bin/rp2040-sim build firmware/fixtures/interrupts.c -o build/interrupts.elf
-.venv/bin/rp2040-sim build firmware/fixtures/buses.c -o build/buses.elf
-.venv/bin/rp2040-sim gui --project examples/buses.json
-```
-
-The builder accepts a single freestanding C file and an optional `--linker` script.
-The default linker places vectors and code in mapped flash and data/BSS in SRAM.
-The loader requires an ELF32 little-endian ARM executable with a Thumb entry and
-matching vectors at `0x10000000`. It initializes segments, stack, and PC directly.
-SDK ELF mode additionally supports the pinned SDK 2.2.0 profile below.
-ROM startup additionally executes the official B2 ROM and supported boot2 code,
-with validated RP2040 flash UF2 ingestion. See [ROM/flash details](docs/boot.md).
-
-## Pico SDK demonstration
-
-```sh
-.venv/bin/rp2040-sim gui --project examples/sdk_blink.json
-.venv/bin/rp2040-sim run --project examples/sdk_uart.json --duration-ms 10
-
-# Requires Pico SDK 2.2.0, CMake, ARM GCC and ARM Newlib
-.venv/bin/rp2040-sim build firmware/sdk/sdk_blink.c --startup sdk -o build/sdk-edited.elf
-.venv/bin/rp2040-sim run build/sdk-edited.elf --startup sdk --duration-ms 1100
-```
-
-The blink example uses SDK GPIO and `sleep_ms(250)`. SDK mode executes crt0,
-data/BSS initialization, runtime clock setup, SRAM vectors and timer interrupts;
-it skips boot ROM and boot2. Clock/reset registers and ROM ABI shims supply the
-audited startup dependencies. Firmware clock-register writes do not change the
-simulator's functional instruction clock. F7 builds SDK editor sources through
-CMake; bundled examples need no build tools. See [SDK setup and limits](docs/sdk-startup.md).
-
-## ROM boot and MicroPython
-
-```sh
-# One-time ROM preparation after a fresh install; no cross compiler required
-.venv/bin/python tools/prepare_bootrom.py
-
-.venv/bin/rp2040-sim gui --project examples/rom_blink.json
-.venv/bin/rp2040-sim gui --project examples/micropython.json
-.venv/bin/rp2040-sim run --project examples/micropython.json \
-    --script firmware/micropython/blink.py --duration-ms 2000
-```
-
-The ROM remains a local dependency. Installed packages can use `PICO_BOOTROM_PATH`
-or **File → Select B2 boot ROM**. ROM mode accepts flash ELF, binary and RP2040
-UF2 images. **New ROM flash test** demonstrates SDK erase/program operations.
-
-The MicroPython 1.26.1 UART profile supports editable scripts, REPL commands,
-interruption, GPIO/time, RTC, ADC and a persistent LittleFS filesystem. Export
-flash from the File menu or CLI `--save-flash` to preserve files between sessions.
-USB is disabled in this profile. See [MicroPython workflow and audited limits](docs/micropython.md).
-
-## Development and verification
-
-```sh
-make test                 # Python, firmware, replay, and offscreen GUI tests
-make native               # CMake shared library and C API contract test
-make demo                 # Rebuild packaged demo ELF hex and editable sources
-make sdk-demo             # Rebuild pinned SDK C fixtures (requires SDK/toolchain)
-make micropython-demo     # Fetch pinned sources and rebuild the UART interpreter
-QT_QPA_PLATFORM=offscreen .venv/bin/rp2040-sim gui \
-    --project examples/workbench.json --screenshot build/workbench.png
-```
-
-Firmware compiler tests skip when ARM GCC is unavailable; GUI tests skip when
-PySide6 is absent. For the full checks, install the GUI/dev extras and ARM compiler.
-
-See [compatibility](docs/compatibility.md), [engine/backend decisions](docs/backend.md),
-[validation instructions](docs/validation.md), and [Phase 1 implementation status](plan/phase-1/implementation-status.md).
+Original RP2040 Lab code and documentation are licensed under the
+**GNU General Public License, version 2 or later** (`GPL-2.0-or-later`). See
+[LICENSE](LICENSE) for the full terms. Third-party code and bundled firmware
+retain their own licenses; see [third-party notices](THIRD_PARTY_NOTICES.md).

@@ -477,6 +477,8 @@ class CodeAssistance(QObject):
             self.navigate(Path(diagnostic['file']).resolve().as_uri(), diagnostic['range'])
         else:
             start = diagnostic['range']['start']
+            if hasattr(self.parent(), 'panels'):
+                self.parent().panels.reveal('editor')
             self.editor.go_to_line(start.get('line', 0) + 1, start.get('character', 0) + 1)
 
     def setup_dialog(self):

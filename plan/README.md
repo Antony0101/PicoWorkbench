@@ -6,11 +6,10 @@
 | [Phase 2](phase-2/README.md) | Desktop UI/UX: laptop layout, work protection, execution feedback, circuit editing, debugging, traces and accessibility | Linux implementation delivered; participant and screen-reader validation open |
 | [Phase 3](phase-3/README.md) | SSD1306 OLED, UART plotting, bus inspection, MicroPython files and matching dashboards | Linux/WSLg delivered; 386 tests, real firmware and installed-wheel/desktop checks passed |
 
-The original plan and its evidence now live in `phase-1/`. Existing right-click
-menus are part of that delivered baseline. Their addition does not complete the
-broader Phase 2 improvements.
+These pages preserve design history and evidence for the revisions that delivered
+each milestone. Use the [documentation index](../docs/README.md) and
+[compatibility matrix](../docs/compatibility.md) for current user-facing behavior.
 
-Start new UI/UX work with the [Phase 2 milestones](phase-2/milestones.md).
 The subsequent [single-file editor upgrade](editor-upgrade.md) records its
 implementation and acceptance checks separately from the original phase evidence.
 Check [Phase 1 status](phase-1/implementation-status.md) for simulator compatibility

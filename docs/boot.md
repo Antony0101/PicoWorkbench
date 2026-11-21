@@ -26,7 +26,7 @@ segment. The application also checks the binary SHA256 before using it:
 - Binary SHA256: `9c19b46f068c21f90d200c514faad4a0d5cecfc978f155b8c9d25cb6bc2efd81`
 - [Source and license](https://github.com/raspberrypi/pico-bootrom-rp2040/tree/b2)
 
-The prepared workspace finds `.tools/bootrom-b2.bin` automatically. Installed
+Source checkouts find `.tools/bootrom-b2.bin` automatically after preparation. Installed
 packages use `PICO_BOOTROM_PATH`, `--bootrom`, or a saved project's `bootrom` path.
 The GUI's **File → Select B2 boot ROM** validates and saves that path. The
 application does not download firmware or ROMs while loading a project.
