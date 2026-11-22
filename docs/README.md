@@ -43,6 +43,9 @@ characteristic.
 - [Development plans](../plan/README.md): design history and milestone records.
   Some pages describe proposals or evidence for earlier revisions; they are not
   a substitute for the current user guides.
+- [Phase 4 SDK project plan](../plan/phase-4/README.md): planned support for
+  existing CMake projects and an official-example compatibility suite; not yet
+  implemented.
 
 ## Quick terminology
 
