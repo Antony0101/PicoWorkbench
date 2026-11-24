@@ -27,6 +27,23 @@ def parser():
     build.add_argument("-o", "--output", type=Path, default=Path("build/firmware.elf"))
     build.add_argument("--linker", type=Path)
     build.add_argument("--startup", choices=("direct", "sdk"), default="direct")
+    project = commands.add_parser('build-project', help='Configure/build an existing Pico SDK CMake project')
+    project.add_argument('root', type=Path)
+    project.add_argument('--list-targets', action='store_true', help='Configure and print target metadata as JSON')
+    project.add_argument('--target')
+    project.add_argument('-o', '--output', type=Path)
+    project.add_argument('--sdk-path', default='')
+    project.add_argument('--compiler', default='')
+    project.add_argument('--cmake', default='')
+    project.add_argument('--make', default='')
+    project.add_argument('--host-cc', default='')
+    project.add_argument('--host-cxx', default='')
+    project.add_argument('--configuration', choices=('Debug', 'RelWithDebInfo'), default='Debug')
+    project.add_argument('--define', action='append', default=[], metavar='KEY=VALUE')
+    sdk = commands.add_parser('sdk', help='Explicitly install/remove the application-managed Pico SDK')
+    sdk.add_argument('operation', choices=('install', 'remove', 'status'))
+    sdk.add_argument('--archive', type=Path, help='Use a verified local SDK archive')
+    sdk.add_argument('--yes', action='store_true', help='Confirm removal of the managed SDK')
     return p
 
 
@@ -36,6 +53,46 @@ def main(argv=None):
         if args.command in (None, "gui"):
             from .gui.app import launch
             return launch(getattr(args, "project", None), getattr(args, "screenshot", None))
+        if args.command == 'sdk':
+            from .sdk_install import install_sdk, managed_sdk, owned_sdk, remove_sdk
+            if args.operation == 'install':
+                print(install_sdk(archive=args.archive, progress=lambda text: print(text, file=sys.stderr)))
+            elif args.operation == 'remove':
+                if not args.yes:
+                    raise ValueError(f'Confirm removal of {managed_sdk()} with --yes; this removes local changes inside that managed SDK')
+                remove_sdk(managed_sdk())
+                print('Managed SDK removed')
+            else:
+                print(json.dumps({'path': str(managed_sdk()), 'installed': owned_sdk(managed_sdk())}))
+            return 0
+        if args.command == 'build-project':
+            from .sdk_tools import ToolchainProfile
+            from .sdk_projects import ProjectBuilder, SdkProjectSpec
+            definitions = {}
+            for definition in args.define:
+                if '=' not in definition:
+                    raise ValueError('--define expects KEY=VALUE')
+                key, value = definition.split('=', 1)
+                definitions[key] = value
+            if not args.list_targets and not args.target:
+                raise ValueError('Choose --target or --list-targets')
+            profile = ToolchainProfile.discover(**{name: getattr(args, name) for name in
+                ('sdk_path', 'compiler', 'cmake', 'make', 'host_cc', 'host_cxx')})
+            builder = ProjectBuilder(SdkProjectSpec(str(args.root), args.target, args.configuration, definitions),
+                profile, log=lambda text: print(text, end='', file=sys.stderr))
+            try:
+                if args.list_targets:
+                    print(json.dumps([{key: value for key, value in asdict(target).items() if key != 'compile_commands'}
+                                      for target in builder.configure()], indent=2))
+                else:
+                    result = builder.build(args.output or Path('build') / (args.target + '.elf'))
+                    if not result.manifest.verified:
+                        raise RuntimeError('Build inputs changed; rebuild before loading: ' + '; '.join(result.manifest.reasons))
+                    print(result.path)
+                return 0
+            except KeyboardInterrupt:
+                builder.cancel()
+                return 130
         if args.command == "build":
             from .build import build, SdkFirmwareBuild
             from . import demo
@@ -77,6 +134,8 @@ def main(argv=None):
         trace = None
         try:
             image = args.firmware or (project.resolve(project.firmware) if project.firmware else None)
+            if project.sdk_project and image is None:
+                raise ValueError('SDK project requires a built firmware ELF; configure/build it first')
             simulation.load(image or demo.image(project.builtin))
             deadline = int(args.duration_ms * 1_000_000)
             trace = args.trace.open("w") if args.trace else None

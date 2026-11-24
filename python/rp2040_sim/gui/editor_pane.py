@@ -274,12 +274,13 @@ class EditorPane(QWidget):
         self.editor.diagnostics = [d for d in combined if not d.get('external') and not d.get('stale')]
         for diagnostic in combined:
             start = diagnostic.get('range', {}).get('start', {})
-            location = f"{Path(diagnostic.get('file', self.filename)).name}:{start.get('line', 0) + 1}:{start.get('character', 0) + 1}"
+            location = f"{diagnostic.get('display_file', Path(diagnostic.get('file', self.filename)).name)}:{start.get('line', 0) + 1}:{start.get('character', 0) + 1}"
             item = QTreeWidgetItem([{1:'Error', 2:'Warning', 3:'Info', 4:'Hint'}.get(diagnostic.get('severity'), 'Info'),
                 diagnostic.get('origin', origin) + (' · old build' if diagnostic.get('stale') else ''),
                 location, diagnostic.get('message', '')])
             item.setData(0, Qt.ItemDataRole.UserRole, diagnostic)
             item.setToolTip(3, diagnostic.get('message', ''))
+            item.setToolTip(2, diagnostic.get('file', self.filename))
             self.problems.addTopLevelItem(item)
         for column in (0, 1, 2):
             self.problems.resizeColumnToContents(column)

@@ -57,3 +57,12 @@ local build/analysis tools. They are not bundled as executable tools in the
 simulator package. Their own licenses still apply; the notices above cover
 third-party code included in the packaged firmware, not an entire toolchain
 distribution.
+
+The explicit SDK installer downloads the verified official 2.2.0 archive into a
+separate per-user directory and retains its upstream license files. The official
+example preparation helper similarly retains the pinned `pico-examples` source
+and notices. Its commit/archive/source hashes and BSD-3-Clause identification are
+recorded in [the catalog](python/rp2040_sim/assets/sdk-examples.json). Neither
+source tree is included in the simulator wheel. If you redistribute ELF files
+you build, preserve the upstream example, SDK, Newlib and compiler-runtime notices
+applicable to those binaries.

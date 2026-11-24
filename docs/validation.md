@@ -1,5 +1,16 @@
 # Validation
 
+## Official SDK projects — 2026-11-24
+
+The Phase 4 delivery passes **464 tests with no skips** with SDK-project and
+language-server acceptance enabled. Nine unchanged stock examples pass eleven
+startup combinations, with reset, different execution budgets and recorded replay.
+Separate multi-source, SPI and dashboard fixtures, native/sanitizer checks,
+installed-wheel CLI/GUI and Linux/WSLg laptop/scaling checks also pass. Exact
+identities, commands, limitations and remaining external checks are in the
+[Phase 4 evidence](../plan/phase-4/evidence.md) and
+[machine-readable summary](benchmarks/phase4-sdk-linux.json).
+
 ## Automated checks
 
 Run `.venv/bin/python -m pytest -q`. The suite covers native instructions/flags,

@@ -1,5 +1,9 @@
 # Pico SDK ELF startup
 
+For existing multi-file CMake projects, target selection and SDK install/remove
+controls, read [Pico SDK projects](sdk-projects.md). The Release scratch profile
+below remains available for standalone editor builds.
+
 The supported profile uses **Pico SDK 2.2.0**, board `pico`, Cortex-M0+, Release
 builds, UART stdio, and USB stdio disabled. The named workloads are
 `firmware/sdk/sdk_blink.c` and `sdk_uart.c`. They include SDK headers and link
@@ -62,8 +66,11 @@ export PICO_SDK_PATH="$PWD/.tools/pico-sdk-2.2.0"
 .venv/bin/python tools/prepare_sdk.py
 ```
 
-Float/double implementations are selected as `compiler`; ROM floating-point
-tables are not implemented. `PICO_CXX_DISABLE_ALLOCATION_OVERRIDES=1` avoids
+Float/double implementations in this standalone profile are selected as `compiler`.
+SDK shortcut mode also supplies SF/SD descriptors for stock runtime initialization;
+calling their arithmetic entries faults explicitly and requires ROM startup.
+Real ROM mode executes the actual floating-point implementations.
+`PICO_CXX_DISABLE_ALLOCATION_OVERRIDES=1` avoids
 pulling C++ allocation overrides into this C-only profile, and the linker language
 is C. The normal SDK ROM memory/bit-operation paths remain enabled.
 This profile does not guarantee that arbitrary SDK applications run.

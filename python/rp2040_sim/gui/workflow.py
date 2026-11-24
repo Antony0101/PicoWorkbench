@@ -3,7 +3,7 @@ from copy import deepcopy
 from pathlib import Path
 import re
 
-from PySide6.QtCore import QThread, Qt, Slot
+from PySide6.QtCore import QThread, QTimer, Qt, Slot
 from PySide6.QtGui import QColor
 from PySide6.QtWidgets import (QApplication, QFileDialog, QInputDialog, QMessageBox,
                               QListWidgetItem, QLineEdit, QPlainTextEdit)
@@ -41,6 +41,10 @@ class Workflow:
         if self._loading_document:
             return
         mode = self.startup_combo.itemData(index)
+        if self.project.sdk_project and mode == 'direct':
+            self.error('Imported Pico SDK projects use SDK shortcut or ROM startup.')
+            self.update_actions()
+            return
         if (mode not in ('direct', 'rom', 'sdk') or self.running or self.busy or
                 getattr(self, 'files_busy', False) or self.build_thread is not None or
                 self.project.builtin == 'micropython'):
@@ -84,6 +88,7 @@ class Workflow:
             self.files_panel.display({**self._runtime_packet, 'reset': False})
 
     def update_actions(self):
+        self.update_sdk_enabled()
         pending = self.circuit_pending
         mode_pending = self.startup_pending
         loaded = bool(self.state and self.state.loaded)
@@ -157,6 +162,10 @@ class Workflow:
         name = Path(self.loaded_name).name
         self.identity_label.setText(f'{phase} · {name} · {difference}')
         self.identity_label.setToolTip(self.loaded_name + '\n' + difference)
+        if self.project.sdk_project:
+            manifest = getattr(self, 'loaded_manifest', None)
+            matches = manifest and getattr(self, 'sdk_inputs_current', False) and self.source_path and manifest.matches(self.source_path, self.editor.toPlainText())
+            self.identity_label.setText(f'{phase} · {name} · ' + ('Source matches loaded build' if matches else 'Build required for current source'))
 
     def request(self, name, callback, **fields):
         self.request_number += 1
@@ -399,13 +408,20 @@ class Workflow:
                     return
                 self._loading_document = True
                 self.project = project
-                self.source_path = project.resolve(project.source) if project.source else None
+                if hasattr(self, 'sdk_generation'):
+                    self.invalidate_sdk()
+                self.source_path = project.resolve(project.source).resolve() if project.source else None
                 self.device_source_path = self.device_source_saved = None
                 self.editor.setPlainText(text)
                 try:
                     self.source_saved = self.source_path.read_text() if self.source_path else text
                 except (OSError, UnicodeError):
                     self.source_saved = None
+                if self.source_path and self.source_path.is_file():
+                    from ..sdk_projects import digest
+                    self.sdk_disk_hash = digest(self.source_path)
+                    if self.source_saved != text:
+                        self.sdk_disk_hash = None
                 self.history = CircuitHistory()
                 self.saved_document = fingerprint(project, text)
                 self._loading_document = False
@@ -413,6 +429,7 @@ class Workflow:
                 self.clock_spin.setValue(project.clock_hz)
                 self._read_symbols(project.resolve(project.firmware) if project.firmware else None)
                 self.refresh_circuit()
+                self.refresh_sdk_controls()
                 self.fault_banner.hide()
                 self.recovery.hide()
                 if project.builtin == 'micropython':
@@ -459,7 +476,7 @@ class Workflow:
         if name:
             try:
                 project = Project.load(Path(name))
-                text = project.source_text if project.source_text is not None else project.resolve(project.source).read_text() if project.source else demo.source(project.builtin)
+                text = project.source_text if project.source_text is not None else project.resolve(project.source).read_text() if project.source and project.resolve(project.source).is_file() else '' if project.sdk_project else demo.source(project.builtin)
                 self.replace_document(project, text)
             except (OSError, ValueError) as error:
                 self.error(str(error))
@@ -482,9 +499,16 @@ class Workflow:
             return False
 
     def open_source(self):
-        name, _ = QFileDialog.getOpenFileName(self, 'Open source', '', 'Source (*.c *.py)')
+        filters = 'Project source (*.c *.h *.S *.hpp);;All files (*)' if self.project.sdk_project else 'Source (*.c *.py)'
+        name, _ = QFileDialog.getOpenFileName(self, 'Open source', '', filters)
         if name:
             try:
+                if self.project.sdk_project:
+                    if self.is_sdk_source(Path(name)):
+                        self.open_sdk_source(Path(name))
+                    else:
+                        self.assistance.navigate(Path(name).resolve().as_uri(), {'start': {'line': 0, 'character': 0}})
+                    return
                 text = Path(name).read_text()
                 if not self.confirm_unsaved():
                     return
@@ -507,6 +531,15 @@ class Workflow:
             return False
         try:
             path = Path(name).resolve()
+            if self.project.sdk_project:
+                if self.build_thread is not None:
+                    self.error('Finish the build before writing source files.')
+                    return False
+                if path == self.source_path:
+                    return self.save_sdk_source()
+                from ..sdk_projects import atomic_write
+                atomic_write(path, self.editor.toPlainText().encode('utf-8'))
+                return True
             temporary = path.with_suffix(path.suffix + '.tmp')
             temporary.write_text(self.editor.toPlainText())
             temporary.replace(path)
@@ -527,6 +560,9 @@ class Workflow:
         if not name or self.busy:
             return
         startup = 'rom' if selected.startswith('RP2040') else 'sdk' if selected.startswith('Pico SDK') else 'direct'
+        if self.project.sdk_project and startup == 'direct':
+            self.error('Detach the SDK project before loading direct-startup firmware.')
+            return
         def load():
             def loaded(ok):
                 if ok:
@@ -545,6 +581,9 @@ class Workflow:
         if self.circuit_pending:
             self.error('Apply the pending circuit before building or uploading source.')
             return
+        if self.project.sdk_project:
+            self.build_sdk_project()
+            return
         if self.project.builtin == 'micropython':
             source = self.editor.toPlainText()
             self.request('python', lambda ok: None, source=source)
@@ -558,7 +597,7 @@ class Workflow:
             if not self.project.linker:
                 linker.write_text(demo.linker())
             self.build_text = self.editor.toPlainText()
-            self.build_task = BuildTask(self.build_text, root / 'editor.c', root / 'editor.elf', linker, self.project.build_mode)
+            self.build_task = BuildTask(self.build_text, root / 'editor.c', root / 'editor.elf', linker, self.project.build_mode, self.tool_options())
             self.build_thread = QThread(self)
             self.build_task.moveToThread(self.build_thread)
             self.build_thread.started.connect(self.build_task.run)
@@ -647,6 +686,11 @@ class Workflow:
         self.editor.gutter.update()
 
     def source_matches(self, filename):
+        if self.project.sdk_project:
+            manifest = getattr(self, 'loaded_manifest', None)
+            if not manifest or not self.source_path or Path(filename).resolve() != Path(self.source_path).resolve():
+                return False
+            return manifest.matches(filename, self.editor.toPlainText()) and getattr(self, 'sdk_inputs_current', False)
         if self.project.builtin == 'micropython' or self.loaded_source != self.editor.toPlainText():
             return False
         expected = Path(self.source_path).name if self.source_path else self.project.builtin + '.c'
@@ -683,9 +727,21 @@ class Workflow:
 
     def closeEvent(self, event):
         if self._closing:
+            self.cancel_build()
+            setup = getattr(self, 'sdk_setup_dialog', None)
+            setup_thread = getattr(setup, 'thread', None)
+            if setup_thread is not None and setup_thread.isRunning():
+                if hasattr(setup.task, 'cancel'):
+                    setup.task.cancel()
+                event.ignore()
+                QTimer.singleShot(100, self.close)
+                return
+            if self.build_thread is not None and self.build_thread.isRunning():
+                event.ignore()
+                QTimer.singleShot(100, self.close)
+                return
             self.save_preferences()
             self.assistance.dispose()
-            self.cancel_build()
             self.dispatch.emit({'name':'shutdown'})
             if not self.thread.wait(5000) or self.build_thread is not None and not self.build_thread.wait(5000):
                 event.ignore()

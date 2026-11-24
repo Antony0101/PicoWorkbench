@@ -112,6 +112,14 @@ class Simulation:
         self.recording.append({"time_ns": self.engine.snapshot().time_ns,
                                "kind": "adc", "channel": channel, "value": value})
 
+    def gpio_input(self, pin: int, drive: Drive):
+        if not isinstance(pin, int) or isinstance(pin, bool) or not 0 <= pin < 30:
+            raise ValueError('GPIO input pin must be between 0 and 29')
+        drive = Drive(drive)
+        self.engine.gpio(pin, drive)
+        self.recording.append({'time_ns': self.engine.snapshot().time_ns,
+                               'kind': 'gpio', 'pin': pin, 'drive': int(drive)})
+
     def _device_response(self):
         request = self.engine.device_request()
         if request is None:
@@ -203,7 +211,9 @@ class Simulation:
             circuit["startup"] = self.project.startup
         return hashlib.sha256(json.dumps(circuit, sort_keys=True).encode()).hexdigest()
 
-    def replay(self, path: Path, deadline_ns: int) -> list[Event]:
+    def replay(self, path: Path, deadline_ns: int, *, budget: int = 10_000) -> list[Event]:
+        if not isinstance(budget, int) or isinstance(budget, bool) or not 1 <= budget <= 1_000_000:
+            raise ValueError('Replay budget must be between 1 and 1,000,000')
         if path.stat().st_size > 5_000_000:
             raise ValueError("Recording file is too large")
         document = json.loads(path.read_text())
@@ -239,6 +249,11 @@ class Simulation:
                 channel, value = event.get("channel"), event.get("value")
                 if not isinstance(channel, int) or not 0 <= channel <= 4 or not isinstance(value, int) or not 0 <= value <= 4095:
                     raise ValueError("Invalid recorded ADC input")
+            elif kind == 'gpio':
+                pin, drive = event.get('pin'), event.get('drive')
+                if (not isinstance(pin, int) or isinstance(pin, bool) or not 0 <= pin < 30 or
+                    not isinstance(drive, int) or isinstance(drive, bool) or drive not in range(6)):
+                    raise ValueError('Invalid recorded GPIO input')
             else:
                 raise ValueError("Unknown recorded input kind")
             previous = when
@@ -246,7 +261,7 @@ class Simulation:
         events = []
         for event in inputs:
             while self.engine.snapshot().time_ns < event["time_ns"]:
-                stop = self.run(event["time_ns"])
+                stop = self.run(event["time_ns"], budget)
                 events.extend(self.engine.events())
                 if int(stop) > 1:
                     raise ValueError(f"Replay interrupted: {stop.name}")
@@ -258,10 +273,12 @@ class Simulation:
                 self.engine.uart(bytes.fromhex(event["hex"]), event["port"])
             elif event["kind"] == "adc":
                 self.engine.adc(event["channel"], event["value"])
+            elif event['kind'] == 'gpio':
+                self.engine.gpio(event['pin'], Drive(event['drive']))
             else:
                 raise ValueError("Unknown recorded input kind")
         while self.engine.snapshot().time_ns < deadline_ns:
-            stop = self.run(deadline_ns)
+            stop = self.run(deadline_ns, budget)
             events.extend(self.engine.events())
             if int(stop) > 1:
                 raise ValueError(f"Replay interrupted: {stop.name}")

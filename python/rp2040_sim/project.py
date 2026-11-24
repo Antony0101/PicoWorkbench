@@ -5,6 +5,7 @@ import json
 import math
 import re
 from .demo import NAMES
+from .sdk_projects import SdkProjectSpec
 
 SCHEMA = 1
 PINS = {"led": ("signal",), "button": ("signal",), "pullup": ("signal",),
@@ -43,6 +44,7 @@ class Project:
     wires: list[tuple[str, str]] = field(default_factory=list)
     path: Path | None = field(default=None, repr=False)
     build_startup: str | None = None
+    sdk_project: SdkProjectSpec | None = None
 
     @property
     def build_mode(self):
@@ -151,6 +153,12 @@ class Project:
             f"{c.id}:{pin}" for c in self.components for pin in PINS.get(c.kind, ())}
 
     def validate(self):
+        if self.sdk_project is not None:
+            if not isinstance(self.sdk_project, SdkProjectSpec):
+                raise ValueError('Invalid SDK project binding')
+            self.sdk_project.validate()
+            if self.builtin == 'micropython' or self.build_mode not in ('sdk', 'rom'):
+                raise ValueError('Imported SDK projects require C and SDK/ROM build startup')
         if not isinstance(self.name, str) or len(self.name) > 256:
             raise ValueError("Invalid project name")
         if self.startup not in ("direct", "sdk", "rom"):
@@ -228,12 +236,17 @@ class Project:
                     "components": [asdict(c) for c in self.components], "wires": self.wires}
         if self.build_startup is not None:
             document['build_startup'] = self.build_startup
+        if self.sdk_project is not None:
+            document['sdk_project'] = asdict(self.sdk_project)
+            document['sdk_project']['root'] = os.path.relpath(self.resolve(self.sdk_project.root), path.parent)
         temporary = path.with_suffix(path.suffix + ".tmp")
         temporary.write_text(json.dumps(document, indent=2) + "\n")
         temporary.replace(path)
         self.path = path
         for key, value in paths.items():
             setattr(self, key, value)
+        if self.sdk_project is not None:
+            self.sdk_project.root = document['sdk_project']['root']
 
     @classmethod
     def load(cls, path: Path):
@@ -242,7 +255,7 @@ class Project:
         d = json.loads(path.read_text())
         if not isinstance(d, dict) or d.get("schema") != SCHEMA or d.get("board") != "pico":
             raise ValueError("Unsupported project schema or board")
-        allowed = {"schema", "board", "name", "clock_hz", "startup", "build_startup", "bootrom", "firmware", "source", "source_text", "linker", "builtin", "components", "wires"}
+        allowed = {"schema", "board", "name", "clock_hz", "startup", "build_startup", "bootrom", "firmware", "source", "source_text", "linker", "builtin", "components", "wires", "sdk_project"}
         if set(d) - allowed:
             raise ValueError("Unknown project fields")
         try:
@@ -253,6 +266,7 @@ class Project:
                           clock_hz=d.get("clock_hz", 1_000_000),
                           startup=d.get("startup", "direct"),
                           build_startup=d.get('build_startup'),
+                          sdk_project=SdkProjectSpec(**d['sdk_project']) if d.get('sdk_project') is not None else None,
                           bootrom=d.get("bootrom", ""),
                           components=[Component(**c) for c in d.get("components", [])],
                           wires=d.get("wires", []), path=path.resolve())

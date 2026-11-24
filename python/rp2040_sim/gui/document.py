@@ -18,6 +18,8 @@ def fingerprint(project, source=None, *, circuit=False):
         data["source_text"] = source
         for key in ("firmware", "source", "linker", "bootrom"):
             data[key] = str(project.resolve(getattr(project, key))) if getattr(project, key) else ""
+        if project.sdk_project:
+            data['sdk_project']['root'] = str(project.resolve(project.sdk_project.root))
     return hashlib.sha256(json.dumps(data, sort_keys=True).encode()).hexdigest()
 
 

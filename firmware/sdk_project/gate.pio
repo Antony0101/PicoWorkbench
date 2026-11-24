@@ -1,0 +1,3 @@
+.program gate
+set pins, 1
+set pins, 0

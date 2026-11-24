@@ -115,6 +115,11 @@ coverage; see [MicroPython compatibility](micropython.md).
 
 ## Validation
 
+Imported SDK projects use the same editor with a target/source selector and the
+project's real compilation metadata. F7 builds saved disk files; **Save source**,
+circuit saving and host-copy saving have distinct behavior. See
+[Pico SDK projects](sdk-projects.md) for setup, generated headers and provenance.
+
 The editor tests cover native editing, search/replacement, Unicode positions,
 completion transactions, diagnostic revisions, layout/preferences and read-only
 previews. A deterministic subprocess tests fragmented LSP messages, delayed

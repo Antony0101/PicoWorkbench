@@ -7,7 +7,7 @@
 static void put32(unsigned char *p, unsigned v) {
     for (unsigned i = 0; i < 4; i++) p[i] = (unsigned char)(v >> (8 * i));
 }
-static int fixture_smoke(const char *path) {
+static int fixture_smoke(const char *path, int sdk) {
     FILE *file = fopen(path, "rb");
     if (!file) { perror(path); return 1; }
     assert(fseek(file, 0, SEEK_END) == 0);
@@ -18,7 +18,7 @@ static int fixture_smoke(const char *path) {
     assert(data && fread(data, 1, (size_t)length, file) == (size_t)length);
     fclose(file);
     sim_t *s = sim_create(1000000);
-    assert(s && sim_load_elf(s, data, (size_t)length) == 0);
+    assert(s && (sdk ? sim_load_elf_sdk(s, data, (size_t)length) : sim_load_elf(s, data, (size_t)length)) == 0);
     free(data);
     assert(sim_schedule_gpio(s, 3000000, 14, SIM_LOW) == 0);
     assert(sim_schedule_adc(s, 0, 0, 2321) == 0);
@@ -42,7 +42,8 @@ static int fixture_smoke(const char *path) {
 }
 
 int main(int argc, char **argv) {
-    if (argc == 2) return fixture_smoke(argv[1]);
+    if (argc == 2) return fixture_smoke(argv[1], 0);
+    if (argc == 3 && strcmp(argv[1], "--sdk") == 0) return fixture_smoke(argv[2], 1);
     unsigned char elf[268] = {0};
     memcpy(elf, "\177ELF\1\1\1", 7);
     elf[16] = 2; elf[18] = 40; elf[20] = 1;
@@ -115,6 +116,9 @@ int main(int argc, char **argv) {
     assert(sim_step(s) == SIM_BUDGET);
     assert(sim_snapshot(s, &state) == 0 && state.registers[0] == 42);
     assert(sim_peek_memory(s, 0x10, value, 4) == 0 && value[0] == 'M' && value[1] == 'u');
+    assert(sim_peek_memory(s, 0x7fe, value, 1) == 0 && value[0] == 32);
+    assert(sim_peek_memory(s, 0x800, value, 4) == 0 && value[0] == 1 && value[1] == 4);
+    assert(sim_peek_memory(s, 0x900, value, 4) == 0 && value[0] == 1 && value[1] == 5);
     sim_destroy(other); sim_destroy(s); sim_destroy(NULL);
     puts("engine contract passed");
     return 0;

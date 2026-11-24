@@ -86,3 +86,26 @@ def test_malformed_recording_does_not_reset_machine(tmp_path, input):
         assert sim.engine.snapshot() == before
     finally:
         sim.close()
+
+
+def test_strong_gpio_inputs_are_recorded_and_replayed(tmp_path):
+    from rp2040_sim.engine import Drive
+    sim = Simulation()
+    try:
+        sim.load(demo.image())
+        sim.gpio_input(14, Drive.LOW)
+        events = run(sim, 100_000_000)
+        sim.gpio_input(14, Drive.HIGH)
+        events += run(sim, 200_000_000)
+        path = tmp_path / 'gpio.json'
+        sim.export_recording(path)
+        assert sim.replay(path, 200_000_000, budget=257) == events
+        before = sim.engine.snapshot()
+        document = json.loads(path.read_text())
+        document['inputs'][0]['drive'] = True
+        path.write_text(json.dumps(document))
+        with pytest.raises(ValueError, match='GPIO'):
+            sim.replay(path, 200_000_000)
+        assert sim.engine.snapshot() == before
+    finally:
+        sim.close()

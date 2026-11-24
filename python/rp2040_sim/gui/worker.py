@@ -1,4 +1,5 @@
 from copy import deepcopy
+from pathlib import Path
 import math
 import hashlib
 from time import monotonic_ns
@@ -36,6 +37,7 @@ class Worker(QObject):
         self.uart_tail = b''
         self.python_interrupt_pending = False
         self.loaded_source = demo.source()
+        self.loaded_manifest = None
         self.loaded_name = 'blink'
         self.flash_baseline = None
         self.exported_flash = None
@@ -62,7 +64,8 @@ class Worker(QObject):
         validate_circuit(project)
         replacement = Simulation(project)
         try:
-            replacement.load(image)
+            if image is not None:
+                replacement.load(image)
         except Exception:
             replacement.close()
             raise
@@ -173,6 +176,7 @@ class Worker(QObject):
                                "startup": self.sim.project.startup,
                                "applied": fingerprint(self.sim.project, circuit=True),
                                "loaded_source": self.loaded_source, "loaded_name": self.loaded_name,
+                               "manifest": self.loaded_manifest,
                                "flash_dirty": self.flash_dirty,
                                "python_status": ("error" if self.python_transfer.stderr else "finished") if self.python_transfer and self.python_transfer.done else
                                                 self.python_transfer.phase if self.python_transfer else "",
@@ -297,8 +301,15 @@ class Worker(QObject):
                 project = deepcopy(self.sim.project)
                 project.startup = message.get('startup', project.startup)
                 project.firmware = str(message['path'])
-                self.replace_simulation(project, message['path'])
+                image = message['path']
+                manifest = message.get('manifest')
+                if manifest:
+                    image = Path(image).read_bytes()
+                    if hashlib.sha256(image).hexdigest() != manifest.elf_sha256 or not manifest.current():
+                        raise ValueError('Build artifact or inputs changed before loading; rebuild first')
+                self.replace_simulation(project, image)
                 self.loaded_source = message.get('source')
+                self.loaded_manifest = message.get('manifest')
                 self.loaded_name = str(message['path'])
                 self.flash_baseline = self.flash_hash()
                 self.exported_flash = None
@@ -317,9 +328,14 @@ class Worker(QObject):
                         image = self.sim.image
                 else:
                     self.check_flash_replacement(message)
-                    image = project.resolve(project.firmware) if project.firmware else demo.image(project.builtin)
+                    if project.sdk_project:
+                        image = project.resolve(project.firmware) if project.firmware and project.resolve(project.firmware).is_file() else None
+                    else:
+                        image = project.resolve(project.firmware) if project.firmware else demo.image(project.builtin)
                 self.replace_simulation(project, image)
                 if not preserve:
+                    from ..sdk_projects import BuildManifest
+                    self.loaded_manifest = BuildManifest.load(image) if isinstance(image, Path) else None
                     self.loaded_source = (None if project.builtin == 'micropython' else
                         message.get('source', demo.source(project.builtin) if not project.firmware else None))
                     self.loaded_name = project.firmware or project.builtin
@@ -399,7 +415,6 @@ class Worker(QObject):
                 self.plot_epoch += 1
                 self.plot_revision = -1
             elif name == 'plot_export':
-                from pathlib import Path
                 Path(message['path']).write_text(self.plot.csv())
             elif name == 'bus_clear':
                 self.sim.bus_capture.clear()
@@ -407,7 +422,6 @@ class Worker(QObject):
             elif name == 'bus_capture':
                 self.sim.bus_capture.enabled = bool(message['enabled'])
             elif name == 'bus_export':
-                from pathlib import Path
                 Path(message['path']).write_text(self.sim.bus_capture.export(message.get('format', 'json')))
             elif name == "breakpoint":
                 self.sim.engine.breakpoint(message["address"], message["enabled"])

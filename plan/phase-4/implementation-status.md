@@ -1,33 +1,41 @@
 # Phase 4 implementation status
 
-**Status: planned; implementation has not started.** Created 2026-11-22.
+**Complete for the Linux/WSLg delivery scope — 2026-11-24.** Physical hardware
+and previously outstanding external checks remain open below.
 
-| Milestone | State | Evidence required before completion |
+| Milestone | State | Evidence |
 | --- | --- | --- |
-| 1. Official baseline | Not started | Pinned catalog; stock blink/UART build and verified behavior in SDK/ROM modes |
-| 2. Existing SDK projects | Not started | File API discovery, async project build, persistence, one-file editing and correct multi-file source/debug identity |
-| 3. SDK setup and assistance | Not started | Tool checks/settings, usable setup flow and real clangd with target/generated headers |
-| 4. Compatibility and delivery | Not started | Complete required catalog, model regressions, Linux/WSLg, installed package, native and full-suite gates |
+| 1. Official baseline | Complete | Unchanged pinned blink/UART build from the upstream root; GPIO/UART, reset and replay pass in both SDK shortcut and B2 ROM modes |
+| 2. Existing SDK projects | Complete | Shared File API builder and CLI; two targets, project library, same-basename sources and generated headers; GUI F7/F9, dirty buffers, external edits, recovery, diagnostics, cancellation and prior-image preservation |
+| 3. SDK setup and assistance | Complete | Explicit/local tool discovery; asynchronous setup and owned SDK install/remove; actual target compilation context; real clangd completion/hover/definitions/diagnostics for project, SDK and generated PIO headers; standalone clangd/Pyright retained |
+| 4. Compatibility and delivery | Complete | All nine stock targets / eleven startup combinations pass; SPI/dashboard fixtures; native and sanitizer checks; installed-wheel CLI/GUI; Linux/WSLg laptop, fonts and scaling checks |
 
-## Existing baseline, not Phase 4 delivery
+The final regression run passed **464 tests, zero skipped**, in 680.54 seconds with
+`RP2040_TEST_SDK_PROJECTS=1` and `RP2040_TEST_LANGUAGE_SERVERS=1`. Additional runtime
+checks verify PWM period/duty and blink/PIO intervals. The machine-readable
+[evidence summary](../../docs/benchmarks/phase4-sdk-linux.json) records implementation,
+upstream, tool and ELF identities, runtime observations and desktop/package results.
+See [delivery evidence](evidence.md) for commands and interpretation, and the
+[user guide](../../docs/sdk-projects.md) for setup and controls.
 
-The application already has a fixed SDK 2.2.0 single-source build profile,
-SDK/ROM startup, supported peripherals, runtime tools and detachable panels.
-Those capabilities establish the starting point; they do not demonstrate
-unmodified upstream project import or broad SDK compatibility.
+The stock sources are `pico-examples` `sdk-2.2.0`, commit
+`4c3a3dc0196dd426fddd709616d0da984e027bab`; the packaged
+[catalog](../../python/rp2040_sim/assets/sdk-examples.json) retains archive, complete
+source-tree and workload hashes. Compile success alone does not set tested status.
+The SPI/dashboard programs are separately labelled project-authored fixtures.
 
-The previous recorded full suite passed 411 tests. That result predates Phase 4
-implementation and must not be presented as evidence for these milestones.
+System compiler installation was deferred at the user's request. Acceptance used
+workspace-local compiler files and an explicit host C++ path, without installing
+system packages. SDK/ARM/host compilers, examples and ROM are not shipped in the
+wheel. The explicit installer manages SDK source only; the optional terminal
+dependency helper remains available for later use.
 
-## Recording progress
+## Remaining external checks
 
-For each gate add the implementation commit/digest, upstream commit and source
-hashes, tool versions, configuration, commands, test summary and observed runtime
-behavior. Link the generated compatibility catalog and review artifacts. Identify
-stock examples separately from project-authored SDK fixtures. A required failing
-or skipped workload keeps its gate open; do not relabel it as complete because
-the compile step succeeded.
+- Physical Pico comparison and real multi-monitor placement.
+- Native desktop testing on other operating systems.
+- Earlier participant usability, screen-reader and accessibility studies.
 
-See [validation](validation.md) for acceptance criteria. Physical Pico comparison,
-additional OS testing, real multi-monitor placement and earlier participant/
-screen-reader checks remain external work and are not closed by this plan.
+These checks are not completed by automated geometry, keyboard or WSLg tests.
+USB/networking/RP2350, external-bus DMA, general C++ compatibility and a multi-tab
+IDE remain excluded features, rather than uncompleted Phase 4 milestones.

@@ -105,7 +105,8 @@ that local SDKs, toolchains, build caches and ROM bytes are excluded.
 Save a compact catalog/result summary under `docs/benchmarks/phase4-sdk-linux.json`
 when generated, and link it from [implementation status](implementation-status.md).
 Keep large logs/screenshots/temporary settings under ignored `build/phase4-review/`.
-The named JSON is a future deliverable, not existing evidence.
+The delivered [JSON summary](../../docs/benchmarks/phase4-sdk-linux.json) and
+[evidence notes](evidence.md) record the completed Linux/WSLg gates.
 
 Physical Pico comparison, other operating systems, real multi-monitor placement
 and earlier accessibility/user studies remain open external checks.

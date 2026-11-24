@@ -4,8 +4,7 @@ Make PicoWorkbench useful for developers bringing existing Raspberry Pi Pico SDK
 C projects: configure their CMake project, choose a firmware target, build its
 ELF, run it against a circuit and inspect the result.
 
-This extends the real SDK support already present. The current application uses
-SDK 2.2.0 with a fixed CMake profile and one scratch C source. Phase 4 adds
+This extends the original SDK 2.2.0 single-source scratch workflow. Phase 4 adds
 existing-project builds and a measured compatibility suite; it does not promise
 that every SDK library, example or board works.
 
@@ -45,5 +44,6 @@ See [milestones](milestones.md), [architecture](architecture.md),
   tool installation and cycle-accurate timing. Host C++ tools such as `pioasm`
   remain legitimate build prerequisites.
 
-This is a plan, not a delivered compatibility claim. Physical Pico comparisons,
+Delivery evidence and current milestone states are recorded in
+[implementation status](implementation-status.md). Physical Pico comparisons,
 other OS validation and earlier participant/screen-reader checks remain open.

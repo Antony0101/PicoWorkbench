@@ -86,6 +86,13 @@ stock image, or commit a locally prepared boot ROM.
 
 ## Report a bug or propose a change
 
+SDK project work also requires the pinned SDK/examples, a complete ARM C++/Newlib
+toolchain, host C++ compiler and B2 ROM. Prepare dependencies explicitly, then run
+the `RP2040_TEST_SDK_PROJECTS=1` and `RP2040_TEST_LANGUAGE_SERVERS=1` gates described
+in [Pico SDK projects](docs/sdk-projects.md). Missing prerequisites fail acceptance;
+ordinary-test skips do not establish SDK compatibility. Never modify stock
+upstream sources to make a required runtime gate pass.
+
 In the repository's issue tracker, include your OS/Python version, commit,
 startup mode, smallest source/project that reproduces the issue, steps, expected
 behavior and actual output. For UI issues, include workspace, font/scaling and

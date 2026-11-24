@@ -11,7 +11,7 @@ import sys
 import tempfile
 from urllib.parse import unquote, urlsplit
 
-from PySide6.QtCore import QEvent, QObject, QProcess, Qt, QTimer, Signal, Slot
+from PySide6.QtCore import QEvent, QObject, QProcess, QProcessEnvironment, Qt, QTimer, Signal, Slot
 from PySide6.QtGui import QTextCursor
 from PySide6.QtWidgets import (QDialog, QDialogButtonBox, QFileDialog, QFormLayout,
     QHBoxLayout, QLabel, QLineEdit, QListWidget, QListWidgetItem, QPushButton,
@@ -77,6 +77,11 @@ class CodeAssistance(QObject):
         self.client = None
         self.preparation = None
         self.context = None
+        self.project_context = None
+        self.project_source_context = None
+        self.header_context_file = None
+        self.project_build_manifest = None
+        self.project_build_inputs = {}
         self.active = False
         self.disposed = False
         self.build_source = None
@@ -108,17 +113,33 @@ class CodeAssistance(QObject):
         pane.diagnostic_activated.connect(self.navigate_diagnostic)
 
     def status(self, text):
+        if self.project_context:
+            text += ' · target ' + self.project_context[1].name
+            if self.header_context_file:
+                root = self.project_context[0].root
+                path = Path(self.header_context_file)
+                text += ' · context ' + (str(path.relative_to(root)) if path.is_relative_to(root) else str(path))
         self.pane.service_status.setText(text)
         self.pane.service_status.setToolTip(text + ('\n' + self.client.error_log[-2000:] if self.client else ''))
 
     def set_context(self, language, startup, source_path=None):
         # Filename changes (Save As) start a fresh document session.
         context = (language, startup, str(source_path or ''))
+        if language == 'c' and source_path and Path(source_path).suffix == '.c':
+            self.project_source_context = str(Path(source_path).resolve())
         if context != self.context:
             self.context = context
-            self.build_source = None
-            self.build_items = []
-            self.pane.set_diagnostics('Compiler', [])
+            if not getattr(getattr(self.parent(), 'project', None), 'sdk_project', None):
+                self.build_source = None
+                self.build_items = []
+                self.pane.set_diagnostics('Compiler', [])
+            else:
+                self.update_build_diagnostics()
+            self.restart()
+
+    def set_project_context(self, context):
+        if context != self.project_context:
+            self.project_context = context
             self.restart()
 
     def activate(self, active):
@@ -129,6 +150,7 @@ class CodeAssistance(QObject):
 
     def restart(self):
         self.dismiss()
+        self.header_context_file = None
         self.timer.stop()
         self.pane.set_diagnostics('Analysis', [])
         if self.client:
@@ -152,7 +174,19 @@ class CodeAssistance(QObject):
             self.status(f'{name} not found · Code assistance… for setup')
             return
         self.source = self.root / ('main.py' if language == 'python' else 'editor.c')
-        self.source.write_text(self.editor.toPlainText(), encoding='utf-8')
+        self.analysis_root = self.root
+        if language == 'c' and getattr(getattr(self.parent(), 'project', None), 'sdk_project', None):
+            if not self.project_context or not self.context[2]:
+                self.status('Configure the SDK project and select a source for clangd')
+                return
+            builder, target, generation = self.project_context
+            self.source = Path(self.context[2]).resolve()
+            if not self.parent().is_sdk_source(self.source):
+                self.status('Select a project source to use its clangd context')
+                return
+            self.analysis_root = builder.root
+        else:
+            self.source.write_text(self.editor.toPlainText(), encoding='utf-8')
         try:
             if language == 'python':
                 stubs = stub_directory(self.settings.value('editor/stubs', '', str))
@@ -170,10 +204,26 @@ class CodeAssistance(QObject):
                     'typeCheckingMode': 'basic', 'stubPath': str(stubs), 'typeshedPaths': [str(typeshed)],
                     'diagnosticMode': 'openFilesOnly', 'useLibraryCodeForTypes': False,
                     'diagnosticSeverityOverrides': {'reportMissingModuleSource': 'none'}}}})
+            elif self.project_context and getattr(getattr(self.parent(), 'project', None), 'sdk_project', None):
+                builder, target, generation = self.project_context
+                directory = builder.compilation_view(target, self.root / 'project' / str(generation))
+                # Give headers the selected target's compile context explicitly.
+                if self.source.suffix in ('.h', '.hpp') and target.compile_commands:
+                    entries = json.loads((directory / 'compile_commands.json').read_text())
+                    candidate = next((e for e in entries if e['file'] == self.project_source_context), None)
+                    if candidate is None:
+                        candidate = next((e for e in entries if Path(e['file']).is_relative_to(builder.root) and Path(e['file']).suffix == '.c'), entries[0])
+                    self.header_context_file = candidate['file']
+                    arguments = [str(self.source) if arg == candidate['file'] else arg for arg in candidate['arguments']]
+                    entries.append({**candidate, 'file': str(self.source), 'arguments': arguments})
+                    (directory / 'compile_commands.json').write_text(json.dumps(entries))
+                self.start_client(program, [f'--compile-commands-dir={directory}',
+                    f'--query-driver={builder.profile.compiler}', '--background-index=0',
+                    '--pch-storage=memory', '-j=2', '--log=error'])
             elif startup in ('sdk', 'rom'):
                 self.prepare_sdk(program)
             else:
-                command = [str(Path(shutil.which(compiler()) or compiler()).resolve()), *compile_flags(), '-c', str(self.source)]
+                command = [compiler(self.settings.value('sdk/compiler', '', str)), *compile_flags(), '-c', str(self.source)]
                 self.start_clangd(program, command, self.root)
         except (OSError, ValueError, RuntimeError) as error:
             self.status(f'Code assistance setup: {error}')
@@ -185,22 +235,28 @@ class CodeAssistance(QObject):
         client.ready.connect(lambda: client.open_document(self.source.as_uri(), self.context[0], self.editor.toPlainText())
                              if self.client is client else None)
         client.diagnostics.connect(lambda packet: self.analysis_diagnostics(packet) if self.client is client else None)
-        client.start(program, arguments, self.root.as_uri(), configuration=configuration)
+        client.start(program, arguments, self.analysis_root.as_uri(), configuration=configuration)
 
     def start_clangd(self, program, command, directory):
         (self.root / 'compile_commands.json').write_text(json.dumps([{'directory': str(directory),
             'file': str(self.source), 'arguments': command}]), encoding='utf-8')
-        cc = str(Path(shutil.which(compiler()) or compiler()).resolve())
+        cc = compiler(self.settings.value('sdk/compiler', '', str))
         self.start_client(program, [f'--compile-commands-dir={self.root}', f'--query-driver={cc}',
             '--background-index=0', '--pch-storage=memory', '-j=2', '--log=error'])
 
     def prepare_sdk(self, program):
         from ..sdk_build import sdk_path
-        sdk = sdk_path()
-        cc = Path(shutil.which(compiler()) or compiler()).resolve()
+        sdk = sdk_path(self.settings.value('sdk/sdk_path', '', str))
+        cc = Path(compiler(self.settings.value('sdk/compiler', '', str))).resolve()
         process = QProcess(self)
         self.preparation = process
         process.setProgram(sys.executable)
+        environment = QProcessEnvironment.systemEnvironment()
+        for key, variable in [('cmake', 'CMAKE'), ('make', 'RP2040_SDK_MAKE'), ('host_cc', 'CC'), ('host_cxx', 'CXX')]:
+            selected = self.settings.value('sdk/' + key, '', str)
+            if selected:
+                environment.insert(variable, selected)
+        process.setProcessEnvironment(environment)
         process.setArguments([str(ROOT / 'python/rp2040_sim/sdk_build.py') if (ROOT / 'python/rp2040_sim/sdk_build.py').is_file()
             else str(Path(__file__).resolve().parents[1] / 'sdk_build.py'), str(self.source), str(self.root / 'editor.elf'),
             str(sdk), str(cc.parent.parent), '--configure-only'])
@@ -424,6 +480,10 @@ class CodeAssistance(QObject):
             self.status('Definition is not in a local file')
             return
         path = Path(unquote(parsed.path))
+        spec = getattr(getattr(self.parent(), 'project', None), 'sdk_project', None)
+        if spec and self.parent().is_sdk_source(path):
+            self.parent().open_sdk_source(path, start.get('line', 0) + 1, start.get('character', 0) + 1)
+            return
         try:
             text = path.read_text(encoding='utf-8')
         except (OSError, UnicodeError) as error:
@@ -459,15 +519,61 @@ class CodeAssistance(QObject):
         self.pane.set_diagnostics('Analysis', items)
 
     def compiled(self, log, source, aliases=()):
+        self.project_build_manifest = None
         self.build_source = source
         self.build_items = compiler_diagnostics(log, source, aliases)
         self.update_build_diagnostics()
         if self.build_items:
             self.pane.problems_button.setChecked(True)
 
+    def compiled_project(self, log, manifest, input_hashes=None):
+        self.project_build_manifest = manifest
+        self.project_build_inputs = manifest.inputs if manifest else input_hashes or {}
+        self.build_source = None
+        self.build_items = compiler_diagnostics(log, '', ())
+        for item in self.build_items:
+            path = Path(item['file'])
+            root = Path(manifest.root) if manifest else self.parent().project.resolve(self.parent().project.sdk_project.root)
+            path = (root / path).resolve()
+            item['file'] = str(path)
+            item['display_file'] = str(path.relative_to(root)) if path.is_relative_to(root) else str(path)
+            item['external'] = not (self.context and str(path) == self.context[2])
+            item['project_result'] = True
+            item['generation'] = self.parent().sdk_generation
+            item['byte_column'] = item['range']['start']['character']
+        self.update_build_diagnostics()
+        if self.build_items:
+            self.pane.problems_button.setChecked(True)
+
     def update_build_diagnostics(self):
         stale = self.build_source is not None and self.build_source != self.editor.toPlainText()
-        self.pane.set_diagnostics('Compiler', [{**item, 'stale': stale} for item in self.build_items])
+        items = []
+        for item in self.build_items:
+            old = stale
+            if item.get('project_result'):
+                item = {**item, 'external': not (self.context and item['file'] == self.context[2])}
+                import hashlib
+                try:
+                    text = Path(item['file']).read_text() if item['external'] else self.editor.toPlainText()
+                    expected = self.project_build_inputs.get(item['file'])
+                    if self.project_build_manifest:
+                        old = not self.project_build_manifest.matches(item['file'], text)
+                    else:
+                        disk = Path(item['file']).read_bytes()
+                        old = expected != hashlib.sha256(disk).hexdigest() or text != disk.decode('utf-8').replace('\r\n', '\n').replace('\r', '\n')
+                    lines = text.split('\n')
+                    row = item['range']['start']['line']
+                    if row < len(lines):
+                        prefix = lines[row].encode('utf-8')[:item['byte_column']].decode('utf-8', 'ignore')
+                        column = utf16_length(prefix)
+                        item = {**item, 'range': {'start': {'line': row, 'character': column}, 'end': {'line': row, 'character': column + 1}}}
+                except (OSError, UnicodeError):
+                    old = True
+                old = old or item['generation'] != self.parent().sdk_generation
+                if self.project_build_manifest is not None and self.project_build_manifest is getattr(self.parent(), 'loaded_manifest', None):
+                    old = old or not self.parent().sdk_inputs_current
+            items.append({**item, 'stale': old})
+        self.pane.set_diagnostics('Compiler', items)
 
     def navigate_diagnostic(self, diagnostic):
         if diagnostic.get('stale'):

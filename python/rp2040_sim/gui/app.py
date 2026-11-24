@@ -30,6 +30,7 @@ from .editor_pane import EditorPane
 from .document import CircuitHistory, fingerprint
 from .workspace import Workspace
 from .workflow import Workflow
+from .sdk import SdkWorkflow
 
 STYLE = """
 QMainWindow, QWidget { background: #111d26; color: #d6e4ec; font-size: 12px; }
@@ -65,12 +66,13 @@ class BuildTask(QObject):
     failed = Signal(str)
     finished = Signal()
 
-    def __init__(self, text, source, output, linker, startup="direct"):
+    def __init__(self, text, source, output, linker, startup="direct", options=None):
         super().__init__()
         self.text, self.source, self.output, self.linker = text, source, output, linker
         self.job = None
         self.startup = startup
         self.canceled = False
+        self.options = options or {}
 
     def cancel(self):
         self.canceled = True
@@ -85,7 +87,7 @@ class BuildTask(QObject):
             self.source.parent.mkdir(parents=True, exist_ok=True)
             self.source.write_text(self.text)
             builder = SdkFirmwareBuild if self.startup in ("sdk", "rom") else FirmwareBuild
-            self.job = builder(self.source, self.output, self.linker)
+            self.job = builder(self.source, self.output, self.linker, options=self.options)
             if self.canceled:
                 self.job.cancel()
                 return
@@ -99,7 +101,7 @@ class BuildTask(QObject):
             self.finished.emit()
 
 
-class Window(Workflow, Workspace, QMainWindow):
+class Window(SdkWorkflow, Workflow, Workspace, QMainWindow):
     dispatch = Signal(object)
 
     def __init__(self, project_path=None, *, settings=None):
@@ -128,7 +130,7 @@ class Window(Workflow, Workspace, QMainWindow):
         self._loading_document = True
         self._after_load_run = False
         self._closing = False
-        self.source_path = self.project.resolve(self.project.source) if self.project.source else None
+        self.source_path = self.project.resolve(self.project.source).resolve() if self.project.source else None
         self.device_source_path = None
         self.device_source_saved = None
         self.files_busy = False
@@ -141,12 +143,15 @@ class Window(Workflow, Workspace, QMainWindow):
             self.inspector.setCurrentWidget(self.dma_inspector)
         elif self.project.builtin == "multicore":
             self.inspector.setCurrentWidget(self.cores_inspector)
-        self.editor.setPlainText(self.project.source_text if self.project.source_text is not None else
-                                 self.source_path.read_text() if self.source_path else demo.source(self.project.builtin))
-        self.source_saved = self.editor.toPlainText()
+        initial = self.project.source_text
+        if initial is None:
+            initial = self.source_path.read_text() if self.source_path and self.source_path.is_file() else '' if self.project.sdk_project else demo.source(self.project.builtin)
+        self.editor.setPlainText(initial)
+        self.source_saved = self.source_path.read_text() if self.source_path and self.source_path.is_file() else self.editor.toPlainText()
         self.saved_document = fingerprint(self.project, self.editor.toPlainText())
         self._loading_document = False
         self.setup_workspace()
+        self.setup_sdk()
         self.thread = QThread(self)
         self.worker = Worker()
         self.worker.moveToThread(self.thread)
@@ -177,6 +182,9 @@ class Window(Workflow, Workspace, QMainWindow):
 
     def _make_ui(self):
         file_menu = self.menuBar().addMenu("File")
+        file_menu.addAction(self.action('Open Pico SDK project…', self.open_sdk_project))
+        file_menu.addAction(self.action('Save source', lambda: self.save_sdk_source() if self.project.sdk_project else self.save_source()))
+        file_menu.addAction(self.action('Official Pico SDK examples…', self.official_sdk_examples))
         examples_menu = None
         for title, callback, shortcut in [
             ("New project / examples…", self.choose_example, "Ctrl+N"),
@@ -228,6 +236,7 @@ class Window(Workflow, Workspace, QMainWindow):
         view_menu.addAction(self.action('Larger editor text', lambda: self.set_editor_font(self.editor.font().pointSize() + 1)))
         view_menu.addAction(self.action('Smaller editor text', lambda: self.set_editor_font(self.editor.font().pointSize() - 1)))
         help_menu = self.menuBar().addMenu('Help')
+        help_menu.addAction(self.action('Pico SDK setup…', self.show_sdk_setup))
         help_menu.addAction(self.action('Getting started', lambda: self.guide.show()))
         help_menu.addAction(self.action('ROM and compiler setup…', self.show_setup))
         help_menu.addAction(self.action('Code assistance setup…', lambda: self.assistance.setup_dialog()))
@@ -641,6 +650,19 @@ class Window(Workflow, Workspace, QMainWindow):
     @Slot()
     def build_finished(self):
         Workflow.build_finished(self)
+        self.refresh_sdk_controls()
+
+    @Slot(object)
+    def sdk_done(self, packet):
+        SdkWorkflow.sdk_done(self, packet)
+
+    @Slot(object)
+    def sdk_failed(self, packet):
+        SdkWorkflow.sdk_failed(self, packet)
+
+    @Slot(str)
+    def sdk_log(self, text):
+        SdkWorkflow.sdk_log(self, text)
 
     @Slot(object)
     def show_memory(self, result):
@@ -664,6 +686,8 @@ class Window(Workflow, Workspace, QMainWindow):
         state = self.state
         self.applied = packet.get('applied', self.applied)
         self.loaded_source = packet.get('loaded_source')
+        self.loaded_manifest = packet.get('manifest')
+        self.watch_sdk_manifest(self.loaded_manifest)
         self.loaded_name = packet.get('loaded_name', '')
         self.flash_dirty = packet.get('flash_dirty', False)
         mode = {"sdk": "SDK ELF", "rom": "B2 ROM + boot2", "direct": "direct load"}[packet.get('startup', self.project.startup)]
@@ -759,6 +783,8 @@ class Window(Workflow, Workspace, QMainWindow):
 
     def _read_symbols(self, path):
         self.symbols = None
+        if self.project.sdk_project and not path:
+            return
         if self.project.builtin != 'micropython':
             try:
                 self.symbols = Symbols(path.read_bytes() if path else demo.image(self.project.builtin))

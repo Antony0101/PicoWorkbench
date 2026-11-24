@@ -99,6 +99,24 @@ def test_real_sdk_uart_stdio(engine):
     assert word(engine, 0x40034048) == 3
 
 
+@pytest.mark.parametrize('code,address,first', [(0x4653, 0x800, 0x401), (0x4453, 0x900, 0x501)])
+def test_sdk_float_descriptors_initialize_but_arithmetic_requires_real_rom(engine, code, address, first):
+    from conftest import Thumb
+    thumb = Thumb()
+    rom_call(thumb, 0x201, 0x180, code).op(0xbe00)
+    engine.load(bytes(sdk_image(thumb.elf())), startup='sdk')
+    assert engine.run(budget=100) == Stop.BREAKPOINT
+    assert engine.snapshot().registers[0] == address
+    assert engine.peek(0x7fe, 1) == b'\x20'
+    assert word(engine, address) == first
+    assert word(engine, address + 31 * 4) == first + 31 * 4
+    thumb = Thumb()
+    rom_call(thumb, first, 0, 0).op(0xbe00)
+    engine.load(bytes(sdk_image(thumb.elf())), startup='sdk')
+    with pytest.raises(SimulationError, match='floating-point.*use ROM startup'):
+        engine.run(budget=100)
+
+
 @pytest.mark.parametrize('change', ['physical_overlap', 'physical_outside', 'ram_lma', 'reset_thumb', 'entry_thumb', 'stack', 'vectors'])
 def test_sdk_elf_rejects_invalid_layout(engine, change):
     image = bytearray(demo.image('sdk_blink'))

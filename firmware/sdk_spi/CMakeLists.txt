@@ -1,0 +1,8 @@
+cmake_minimum_required(VERSION 3.25)
+include("${PICO_SDK_PATH}/external/pico_sdk_import.cmake")
+project(picoworkbench_spi_gate C CXX ASM)
+pico_sdk_init()
+add_executable(sdk_spi main.c)
+target_link_libraries(sdk_spi pico_stdlib hardware_spi)
+pico_enable_stdio_uart(sdk_spi 1)
+pico_enable_stdio_usb(sdk_spi 0)

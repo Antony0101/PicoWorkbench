@@ -17,6 +17,7 @@ See the [compatibility matrix](docs/compatibility.md) before choosing a workload
 - Wire LEDs, buttons, sensors, an SSD1306 OLED and a SPI loopback device.
 - Inspect GPIO traces, plot serial values and examine I²C/SPI exchanges.
 - Edit one C or MicroPython source file, with optional local code assistance.
+- Configure existing Pico SDK CMake projects, select targets and build multi-file C firmware.
 - Use the MicroPython UART REPL and manage files in simulated flash.
 - Open editor, output and inspector panels in separate windows sharing one chip.
 - Save circuit projects, export flash and replay recorded inputs from the CLI.
@@ -100,6 +101,7 @@ Start with the [documentation index](docs/README.md), or choose a guide:
 | Install or fix a display/build error | [Getting started](docs/getting-started.md) |
 | Learn the GUI, shortcuts and separate windows | [Desktop workflow](docs/desktop.md) |
 | Edit code and set up clangd/Pyright | [Code editor](docs/editor.md) |
+| Install/remove the SDK or build an existing Pico project | [Pico SDK projects](docs/sdk-projects.md) |
 | Try firmware examples or automate a run | [Examples and CLI](docs/examples.md) |
 | Use the OLED, plots, buses or Pico files | [Runtime tools](docs/runtime-tools.md) |
 | Understand supported hardware and limits | [Compatibility](docs/compatibility.md) |

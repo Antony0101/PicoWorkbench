@@ -53,7 +53,13 @@ Alternatives considered:
 - `bindings/build.py`: out-of-line CFFI extension; no Python callbacks in the CPU loop.
 - `python/rp2040_sim/engine.py`: owned Python handles and immutable snapshots/events.
 - `controller.py`, `project.py`, `components.py`: headless project and device models.
+- `sdk_tools.py`, `sdk_projects.py`: Qt-independent tool discovery, CMake File API
+  target discovery, cancelable build process groups and verified build manifests.
+- `sdk_install.py`, `sdk_examples.py`, `sdk_acceptance.py`: explicit owned SDK
+  installation/removal, pinned official sources and independent runtime oracles.
 - `gui/worker.py`: the engine's sole owner in a Qt worker thread.
+- `gui/sdk.py`: asynchronous build/setup adapters and the single-buffer SDK
+  project workflow. Build threads never access the simulation engine or widgets.
 - `gui/`: presentation only; widgets receive copied state and submit commands.
 
 All native modules operate on the same privately defined instance, owned by one

@@ -1,0 +1,194 @@
+{
+  "schema": 1,
+  "tag": "sdk-2.2.0",
+  "commit": "4c3a3dc0196dd426fddd709616d0da984e027bab",
+  "archive_sha256": "9873c546686ecd40fbb9d06af5e76e84eb30ec83494ef6b12bef1516f9140f36",
+  "upstream": "https://github.com/raspberrypi/pico-examples",
+  "license": "BSD-3-Clause",
+  "workloads": [
+    {
+      "target": "blink",
+      "source": "blink/blink.c",
+      "startup": "sdk",
+      "description": "GPIO25 toggles every 250 ms.",
+      "circuit": "LED/probe on GP25",
+      "duration_ms": 1100,
+      "status": "tested",
+      "category": "stock",
+      "source_hashes": {
+        "CMakeLists.txt": "f026f51af47616abcd479c52cf7227ea856ed9103648a0b160ee53b13b926c27",
+        "pico_sdk_import.cmake": "7b4db98ec410049c12567288304afb0186fcf20f6b2b8d446e6173d118a56881",
+        "blink/blink.c": "d38c0e88a3446a156cfcb5d19b5258dd9933b96b77ded5aac9d408637dfe5720",
+        "blink/CMakeLists.txt": "fc92f68757132525721c8d55365b04267105a3fc8b07866723f8adc7200ed687"
+      },
+      "tested_startups": [
+        "sdk",
+        "rom"
+      ],
+      "tested_on": "2026-11-24"
+    },
+    {
+      "target": "hello_serial",
+      "source": "hello_world/serial/hello_serial.c",
+      "startup": "sdk",
+      "description": "UART0 prints Hello, world! once per second.",
+      "circuit": "UART0 output",
+      "duration_ms": 1100,
+      "status": "tested",
+      "category": "stock",
+      "source_hashes": {
+        "CMakeLists.txt": "f026f51af47616abcd479c52cf7227ea856ed9103648a0b160ee53b13b926c27",
+        "pico_sdk_import.cmake": "7b4db98ec410049c12567288304afb0186fcf20f6b2b8d446e6173d118a56881",
+        "hello_world/serial/hello_serial.c": "ad3b31f6101d160ecff7965aa612e5999efbea098ba0fa80840a256184b1971e",
+        "hello_world/serial/CMakeLists.txt": "7d87ceec4567fb425afe65d621c44d80543d716b60d9c3f392144b830478fe7e"
+      },
+      "tested_startups": [
+        "sdk",
+        "rom"
+      ],
+      "tested_on": "2026-11-24"
+    },
+    {
+      "target": "hello_gpio_irq",
+      "source": "gpio/hello_gpio_irq/hello_gpio_irq.c",
+      "startup": "rom",
+      "description": "GP2 rising/falling edges invoke the registered IRQ callback.",
+      "circuit": "External input on GP2",
+      "duration_ms": 100,
+      "status": "tested",
+      "category": "stock",
+      "source_hashes": {
+        "CMakeLists.txt": "f026f51af47616abcd479c52cf7227ea856ed9103648a0b160ee53b13b926c27",
+        "pico_sdk_import.cmake": "7b4db98ec410049c12567288304afb0186fcf20f6b2b8d446e6173d118a56881",
+        "gpio/hello_gpio_irq/hello_gpio_irq.c": "233b6b613db5660ebf36ce9a9e5959f47deea595d83f9b855d28c29d73689ef2",
+        "gpio/hello_gpio_irq/CMakeLists.txt": "da041f90b7396873b4a2324afbc2d29dfa3e10283673d7ea2ab669561538c752"
+      },
+      "tested_startups": [
+        "rom"
+      ],
+      "tested_on": "2026-11-24"
+    },
+    {
+      "target": "hello_adc",
+      "source": "adc/hello_adc/hello_adc.c",
+      "startup": "rom",
+      "description": "ADC0 readings are printed with the corresponding voltage.",
+      "circuit": "ADC0 slider / GP26",
+      "duration_ms": 1100,
+      "status": "tested",
+      "category": "stock",
+      "source_hashes": {
+        "CMakeLists.txt": "f026f51af47616abcd479c52cf7227ea856ed9103648a0b160ee53b13b926c27",
+        "pico_sdk_import.cmake": "7b4db98ec410049c12567288304afb0186fcf20f6b2b8d446e6173d118a56881",
+        "adc/hello_adc/hello_adc.c": "451e4a04036d21721abc83219381d053fefecf739427cafad95c886aa8fb1543",
+        "adc/hello_adc/CMakeLists.txt": "33e339beb772345dcd983c724c08fc8f57c60d26f69ef9af318d3de94ece953a"
+      },
+      "tested_startups": [
+        "rom"
+      ],
+      "tested_on": "2026-11-24"
+    },
+    {
+      "target": "hello_pwm",
+      "source": "pwm/hello_pwm/hello_pwm.c",
+      "startup": "rom",
+      "description": "PWM slice 0 drives GP0/GP1 with TOP 3 and levels 1/3.",
+      "circuit": "Probes on GP0 and GP1",
+      "duration_ms": 100,
+      "status": "tested",
+      "category": "stock",
+      "source_hashes": {
+        "CMakeLists.txt": "f026f51af47616abcd479c52cf7227ea856ed9103648a0b160ee53b13b926c27",
+        "pico_sdk_import.cmake": "7b4db98ec410049c12567288304afb0186fcf20f6b2b8d446e6173d118a56881",
+        "pwm/hello_pwm/hello_pwm.c": "7015a851cb67d5e792661c16ca9497c5d416bdb852f7a075449e24a14137db9d",
+        "pwm/hello_pwm/CMakeLists.txt": "de67c19687998bbdff0c0cb1f0a23c93b46fd6b39daf8e4a7573aa143f01e913"
+      },
+      "tested_startups": [
+        "rom"
+      ],
+      "tested_on": "2026-11-24"
+    },
+    {
+      "target": "i2c_bus_scan",
+      "source": "i2c/bus_scan/bus_scan.c",
+      "startup": "rom",
+      "description": "The scan reports the sensor at 0x48 and NACKs at missing addresses.",
+      "circuit": "Register sensor at 0x48 on GP4/GP5",
+      "duration_ms": 200,
+      "status": "tested",
+      "category": "stock",
+      "source_hashes": {
+        "CMakeLists.txt": "f026f51af47616abcd479c52cf7227ea856ed9103648a0b160ee53b13b926c27",
+        "pico_sdk_import.cmake": "7b4db98ec410049c12567288304afb0186fcf20f6b2b8d446e6173d118a56881",
+        "i2c/bus_scan/bus_scan.c": "e08baead1c2b7efe993311159b723094df50f639fb59cac677089208f9b9df19",
+        "i2c/bus_scan/CMakeLists.txt": "c73f929d4ef7535b0b25732e62b76628c115e83d5092d0f8727926ecb4c612e7"
+      },
+      "tested_startups": [
+        "rom"
+      ],
+      "tested_on": "2026-11-24"
+    },
+    {
+      "target": "hello_pio",
+      "source": "pio/hello_pio/hello.c",
+      "startup": "rom",
+      "description": "Generated PIO code outputs alternating values to GPIO25.",
+      "circuit": "LED/probe on GP25",
+      "duration_ms": 1100,
+      "status": "tested",
+      "category": "stock",
+      "source_hashes": {
+        "CMakeLists.txt": "f026f51af47616abcd479c52cf7227ea856ed9103648a0b160ee53b13b926c27",
+        "pico_sdk_import.cmake": "7b4db98ec410049c12567288304afb0186fcf20f6b2b8d446e6173d118a56881",
+        "pio/hello_pio/hello.c": "ed261d9a425de2f54beea8b4992f0bf2f5c6a58fb620b7cf5ccedca61ada547c",
+        "pio/hello_pio/CMakeLists.txt": "2caea4b4f43556a0f279b14809d57ddfb9de152a9242d2f8ada92f1578fa38fa",
+        "pio/hello_pio/hello.pio": "7cffb21ea665eb36f4f23b4bde93ba69cde58001b8258b5721a2fe71b0bb9008"
+      },
+      "tested_startups": [
+        "rom"
+      ],
+      "tested_on": "2026-11-24"
+    },
+    {
+      "target": "hello_dma",
+      "source": "dma/hello_dma/hello_dma.c",
+      "startup": "rom",
+      "description": "DMA copies the complete greeting from src to dst.",
+      "circuit": "UART0 output; inspect DMA0",
+      "duration_ms": 100,
+      "status": "tested",
+      "category": "stock",
+      "source_hashes": {
+        "CMakeLists.txt": "f026f51af47616abcd479c52cf7227ea856ed9103648a0b160ee53b13b926c27",
+        "pico_sdk_import.cmake": "7b4db98ec410049c12567288304afb0186fcf20f6b2b8d446e6173d118a56881",
+        "dma/hello_dma/hello_dma.c": "78a6575da5f92e188015cb8f9a9e379d545a9a1b59f64f8d4599af442d29a2ad",
+        "dma/hello_dma/CMakeLists.txt": "dcc58467c464ad398ccf6a9f93d66ef3d099c72944eadc9e69f5140b250726c1"
+      },
+      "tested_startups": [
+        "rom"
+      ],
+      "tested_on": "2026-11-24"
+    },
+    {
+      "target": "hello_multicore",
+      "source": "multicore/hello_multicore/multicore.c",
+      "startup": "rom",
+      "description": "Both cores exchange flag 123 through the FIFO.",
+      "circuit": "UART0 output; inspect Cores",
+      "duration_ms": 100,
+      "status": "tested",
+      "category": "stock",
+      "source_hashes": {
+        "CMakeLists.txt": "f026f51af47616abcd479c52cf7227ea856ed9103648a0b160ee53b13b926c27",
+        "pico_sdk_import.cmake": "7b4db98ec410049c12567288304afb0186fcf20f6b2b8d446e6173d118a56881",
+        "multicore/hello_multicore/multicore.c": "9432de60e2ea64e6f67d892719c580fc97af9918041c5300567b908c70d9a3a0",
+        "multicore/hello_multicore/CMakeLists.txt": "cdaa92f7bcc22ba678b8726fa4f9a02ce40cf9158b6242277b18790e4497de25"
+      },
+      "tested_startups": [
+        "rom"
+      ],
+      "tested_on": "2026-11-24"
+    }
+  ],
+  "source_tree_sha256": "bd8b29b14ca071ec44894306e3bf578661ca39730193a490af4bd1654de0f989"
+}

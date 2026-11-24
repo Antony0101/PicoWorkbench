@@ -1,0 +1,694 @@
+{
+  "schema": 1,
+  "recorded_on": "2026-11-24",
+  "implementation_sha256": "71c47b0f46cb9eb5249ea1fdd61bd1e9dec970d061941866f1309042272ee19f",
+  "implementation_digest_scope": "Sorted repository-relative paths plus SHA256 digests of Python/native/bindings code, tools, tests, build metadata, SDK fixtures and official catalog",
+  "upstream": {
+    "schema": 1,
+    "tag": "sdk-2.2.0",
+    "commit": "4c3a3dc0196dd426fddd709616d0da984e027bab",
+    "archive_sha256": "9873c546686ecd40fbb9d06af5e76e84eb30ec83494ef6b12bef1516f9140f36",
+    "upstream": "https://github.com/raspberrypi/pico-examples",
+    "license": "BSD-3-Clause",
+    "workloads": [
+      {
+        "target": "blink",
+        "source": "blink/blink.c",
+        "startup": "sdk",
+        "description": "GPIO25 toggles every 250 ms.",
+        "circuit": "LED/probe on GP25",
+        "duration_ms": 1100,
+        "status": "tested",
+        "category": "stock",
+        "source_hashes": {
+          "CMakeLists.txt": "f026f51af47616abcd479c52cf7227ea856ed9103648a0b160ee53b13b926c27",
+          "pico_sdk_import.cmake": "7b4db98ec410049c12567288304afb0186fcf20f6b2b8d446e6173d118a56881",
+          "blink/blink.c": "d38c0e88a3446a156cfcb5d19b5258dd9933b96b77ded5aac9d408637dfe5720",
+          "blink/CMakeLists.txt": "fc92f68757132525721c8d55365b04267105a3fc8b07866723f8adc7200ed687"
+        },
+        "tested_startups": [
+          "sdk",
+          "rom"
+        ],
+        "tested_on": "2026-11-24"
+      },
+      {
+        "target": "hello_serial",
+        "source": "hello_world/serial/hello_serial.c",
+        "startup": "sdk",
+        "description": "UART0 prints Hello, world! once per second.",
+        "circuit": "UART0 output",
+        "duration_ms": 1100,
+        "status": "tested",
+        "category": "stock",
+        "source_hashes": {
+          "CMakeLists.txt": "f026f51af47616abcd479c52cf7227ea856ed9103648a0b160ee53b13b926c27",
+          "pico_sdk_import.cmake": "7b4db98ec410049c12567288304afb0186fcf20f6b2b8d446e6173d118a56881",
+          "hello_world/serial/hello_serial.c": "ad3b31f6101d160ecff7965aa612e5999efbea098ba0fa80840a256184b1971e",
+          "hello_world/serial/CMakeLists.txt": "7d87ceec4567fb425afe65d621c44d80543d716b60d9c3f392144b830478fe7e"
+        },
+        "tested_startups": [
+          "sdk",
+          "rom"
+        ],
+        "tested_on": "2026-11-24"
+      },
+      {
+        "target": "hello_gpio_irq",
+        "source": "gpio/hello_gpio_irq/hello_gpio_irq.c",
+        "startup": "rom",
+        "description": "GP2 rising/falling edges invoke the registered IRQ callback.",
+        "circuit": "External input on GP2",
+        "duration_ms": 100,
+        "status": "tested",
+        "category": "stock",
+        "source_hashes": {
+          "CMakeLists.txt": "f026f51af47616abcd479c52cf7227ea856ed9103648a0b160ee53b13b926c27",
+          "pico_sdk_import.cmake": "7b4db98ec410049c12567288304afb0186fcf20f6b2b8d446e6173d118a56881",
+          "gpio/hello_gpio_irq/hello_gpio_irq.c": "233b6b613db5660ebf36ce9a9e5959f47deea595d83f9b855d28c29d73689ef2",
+          "gpio/hello_gpio_irq/CMakeLists.txt": "da041f90b7396873b4a2324afbc2d29dfa3e10283673d7ea2ab669561538c752"
+        },
+        "tested_startups": [
+          "rom"
+        ],
+        "tested_on": "2026-11-24"
+      },
+      {
+        "target": "hello_adc",
+        "source": "adc/hello_adc/hello_adc.c",
+        "startup": "rom",
+        "description": "ADC0 readings are printed with the corresponding voltage.",
+        "circuit": "ADC0 slider / GP26",
+        "duration_ms": 1100,
+        "status": "tested",
+        "category": "stock",
+        "source_hashes": {
+          "CMakeLists.txt": "f026f51af47616abcd479c52cf7227ea856ed9103648a0b160ee53b13b926c27",
+          "pico_sdk_import.cmake": "7b4db98ec410049c12567288304afb0186fcf20f6b2b8d446e6173d118a56881",
+          "adc/hello_adc/hello_adc.c": "451e4a04036d21721abc83219381d053fefecf739427cafad95c886aa8fb1543",
+          "adc/hello_adc/CMakeLists.txt": "33e339beb772345dcd983c724c08fc8f57c60d26f69ef9af318d3de94ece953a"
+        },
+        "tested_startups": [
+          "rom"
+        ],
+        "tested_on": "2026-11-24"
+      },
+      {
+        "target": "hello_pwm",
+        "source": "pwm/hello_pwm/hello_pwm.c",
+        "startup": "rom",
+        "description": "PWM slice 0 drives GP0/GP1 with TOP 3 and levels 1/3.",
+        "circuit": "Probes on GP0 and GP1",
+        "duration_ms": 100,
+        "status": "tested",
+        "category": "stock",
+        "source_hashes": {
+          "CMakeLists.txt": "f026f51af47616abcd479c52cf7227ea856ed9103648a0b160ee53b13b926c27",
+          "pico_sdk_import.cmake": "7b4db98ec410049c12567288304afb0186fcf20f6b2b8d446e6173d118a56881",
+          "pwm/hello_pwm/hello_pwm.c": "7015a851cb67d5e792661c16ca9497c5d416bdb852f7a075449e24a14137db9d",
+          "pwm/hello_pwm/CMakeLists.txt": "de67c19687998bbdff0c0cb1f0a23c93b46fd6b39daf8e4a7573aa143f01e913"
+        },
+        "tested_startups": [
+          "rom"
+        ],
+        "tested_on": "2026-11-24"
+      },
+      {
+        "target": "i2c_bus_scan",
+        "source": "i2c/bus_scan/bus_scan.c",
+        "startup": "rom",
+        "description": "The scan reports the sensor at 0x48 and NACKs at missing addresses.",
+        "circuit": "Register sensor at 0x48 on GP4/GP5",
+        "duration_ms": 200,
+        "status": "tested",
+        "category": "stock",
+        "source_hashes": {
+          "CMakeLists.txt": "f026f51af47616abcd479c52cf7227ea856ed9103648a0b160ee53b13b926c27",
+          "pico_sdk_import.cmake": "7b4db98ec410049c12567288304afb0186fcf20f6b2b8d446e6173d118a56881",
+          "i2c/bus_scan/bus_scan.c": "e08baead1c2b7efe993311159b723094df50f639fb59cac677089208f9b9df19",
+          "i2c/bus_scan/CMakeLists.txt": "c73f929d4ef7535b0b25732e62b76628c115e83d5092d0f8727926ecb4c612e7"
+        },
+        "tested_startups": [
+          "rom"
+        ],
+        "tested_on": "2026-11-24"
+      },
+      {
+        "target": "hello_pio",
+        "source": "pio/hello_pio/hello.c",
+        "startup": "rom",
+        "description": "Generated PIO code outputs alternating values to GPIO25.",
+        "circuit": "LED/probe on GP25",
+        "duration_ms": 1100,
+        "status": "tested",
+        "category": "stock",
+        "source_hashes": {
+          "CMakeLists.txt": "f026f51af47616abcd479c52cf7227ea856ed9103648a0b160ee53b13b926c27",
+          "pico_sdk_import.cmake": "7b4db98ec410049c12567288304afb0186fcf20f6b2b8d446e6173d118a56881",
+          "pio/hello_pio/hello.c": "ed261d9a425de2f54beea8b4992f0bf2f5c6a58fb620b7cf5ccedca61ada547c",
+          "pio/hello_pio/CMakeLists.txt": "2caea4b4f43556a0f279b14809d57ddfb9de152a9242d2f8ada92f1578fa38fa",
+          "pio/hello_pio/hello.pio": "7cffb21ea665eb36f4f23b4bde93ba69cde58001b8258b5721a2fe71b0bb9008"
+        },
+        "tested_startups": [
+          "rom"
+        ],
+        "tested_on": "2026-11-24"
+      },
+      {
+        "target": "hello_dma",
+        "source": "dma/hello_dma/hello_dma.c",
+        "startup": "rom",
+        "description": "DMA copies the complete greeting from src to dst.",
+        "circuit": "UART0 output; inspect DMA0",
+        "duration_ms": 100,
+        "status": "tested",
+        "category": "stock",
+        "source_hashes": {
+          "CMakeLists.txt": "f026f51af47616abcd479c52cf7227ea856ed9103648a0b160ee53b13b926c27",
+          "pico_sdk_import.cmake": "7b4db98ec410049c12567288304afb0186fcf20f6b2b8d446e6173d118a56881",
+          "dma/hello_dma/hello_dma.c": "78a6575da5f92e188015cb8f9a9e379d545a9a1b59f64f8d4599af442d29a2ad",
+          "dma/hello_dma/CMakeLists.txt": "dcc58467c464ad398ccf6a9f93d66ef3d099c72944eadc9e69f5140b250726c1"
+        },
+        "tested_startups": [
+          "rom"
+        ],
+        "tested_on": "2026-11-24"
+      },
+      {
+        "target": "hello_multicore",
+        "source": "multicore/hello_multicore/multicore.c",
+        "startup": "rom",
+        "description": "Both cores exchange flag 123 through the FIFO.",
+        "circuit": "UART0 output; inspect Cores",
+        "duration_ms": 100,
+        "status": "tested",
+        "category": "stock",
+        "source_hashes": {
+          "CMakeLists.txt": "f026f51af47616abcd479c52cf7227ea856ed9103648a0b160ee53b13b926c27",
+          "pico_sdk_import.cmake": "7b4db98ec410049c12567288304afb0186fcf20f6b2b8d446e6173d118a56881",
+          "multicore/hello_multicore/multicore.c": "9432de60e2ea64e6f67d892719c580fc97af9918041c5300567b908c70d9a3a0",
+          "multicore/hello_multicore/CMakeLists.txt": "cdaa92f7bcc22ba678b8726fa4f9a02ce40cf9158b6242277b18790e4497de25"
+        },
+        "tested_startups": [
+          "rom"
+        ],
+        "tested_on": "2026-11-24"
+      }
+    ],
+    "source_tree_sha256": "bd8b29b14ca071ec44894306e3bf578661ca39730193a490af4bd1654de0f989"
+  },
+  "profile": {
+    "sdk_version": "2.2.0",
+    "sdk_archive_sha256": "dbd8db79015aced4ef35cbaa88051b0d451775010d20202e1c7d2bee69c25b35",
+    "board": "pico",
+    "platform": "rp2040",
+    "configuration": "Debug",
+    "generator": "Unix Makefiles",
+    "parallel_jobs": 4,
+    "clock_hz": 1000000,
+    "b2_rom_sha256": "9c19b46f068c21f90d200c514faad4a0d5cecfc978f155b8c9d25cb6bc2efd81"
+  },
+  "toolchain": {
+    "sdk": ".tools/pico-sdk-2.2.0",
+    "compiler": ".tools/arm/usr/bin/arm-none-eabi-gcc",
+    "cmake": [
+      ".venv/bin/python",
+      "-m",
+      "cmake"
+    ],
+    "make": "/usr/bin/make",
+    "host_cc": "/usr/bin/x86_64-linux-gnu-gcc-13",
+    "host_cxx": "build/phase4-review/host/usr/bin/x86_64-linux-gnu-g++-13",
+    "sdk_version": "2.2.0",
+    "compiler_version": "arm-none-eabi-gcc (15:13.2.rel1-2) 13.2.1 20231009",
+    "cmake_version": "cmake version 4.4.5",
+    "newlib": ".tools/arm/usr/lib/arm-none-eabi/newlib/thumb/v6-m/nofp/libc.a",
+    "identity": "d1bbdd96802ea9055718ad0e5ec6243992600013139336b22d151780f7fc17bc",
+    "warnings": [
+      "SDK sources differ from the pinned archive or contain additional sources; installation is modified/unverified"
+    ],
+    "include_roots": [
+      ".tools/arm/usr/include/newlib/c++/13.2.1",
+      ".tools/arm/usr/include/newlib/c++/13.2.1/arm-none-eabi",
+      ".tools/arm/usr/include/newlib/c++/13.2.1/backward",
+      ".tools/arm/usr/lib/gcc/arm-none-eabi/13.2.1/include",
+      ".tools/arm/usr/lib/gcc/arm-none-eabi/13.2.1/include-fixed",
+      ".tools/arm/usr/include/newlib"
+    ]
+  },
+  "versions": {
+    "python": "3.12.3",
+    "platform": "Linux-5.15.167.4-microsoft-standard-WSL2-x86_64-with-glibc2.39",
+    "qt": "6.12.0",
+    "clangd": "clangd version 23.1.0 (https://github.com/llvm/llvm-project ea7d852a70e8bdfaf601d6626a760f9771b2c4b4)",
+    "pyright": "pyright 1.1.414",
+    "host_cxx": "x86_64-linux-gnu-g++-13 (Ubuntu 13.3.0-6ubuntu2~24.04.1) 13.3.0",
+    "make": "GNU Make 4.3"
+  },
+  "test_dependency_packages": [
+    {
+      "package": "g++-13-x86-64-linux-gnu",
+      "version": "13.3.0-6ubuntu2~24.04.1",
+      "sha256": "0bd6af6164252d4ea9170d201ee4c10a3120fe0fc04985a00be3bc9076353844"
+    },
+    {
+      "package": "libstdc++-13-dev",
+      "version": "13.3.0-6ubuntu2~24.04.1",
+      "sha256": "ee5633e863e19c3381ed97842ce35ed32ede96a3d1ae4e94c051d3036fe21347"
+    },
+    {
+      "package": "libstdc++-arm-none-eabi-dev",
+      "version": "15:13.2.rel1-2+26",
+      "sha256": "3d6c169c2aad240df24da73c052b0c9546d76c5824b6692f2fb52c95c6afcc2b"
+    },
+    {
+      "package": "libstdc++-arm-none-eabi-newlib",
+      "version": "15:13.2.rel1-2+26",
+      "sha256": "b51e45c35cb8a9666e9eef9958e69e3798186b83a845c6c0d181c5da75568460"
+    }
+  ],
+  "test_dependency_note": "System installation deferred. Actual compiler packages were extracted into ignored workspace tools and an explicit host CXX path was selected. These tools are not packaged.",
+  "runtime_results": [
+    {
+      "passed": true,
+      "target": "blink",
+      "startup": "sdk",
+      "firmware_sha256": "0850b0591cfc623de2f5f6396cd577ece7c825d27d52f0fcefc160eaa33fecb6",
+      "recorded_replay": true,
+      "instruction_budgets": [
+        257,
+        4096
+      ],
+      "reset_repeated": true,
+      "observation": {
+        "uart": "",
+        "gpio_events": 5,
+        "gpio_sha256": "d7f5ffd94e48a3bf2e3ebce06f35022d4de0e623961e86591ef4beca0fdfd133",
+        "bus_sha256": "4f53cda18c2baa0c0354bb5f9a3ecbe5ed12ab4d8e11ba873c2f11161202b945",
+        "bus_exchanges": 0,
+        "instructions": 6697,
+        "time_ns": 1100000000,
+        "stop": "DEADLINE",
+        "sdk_exit_stops": 0,
+        "first_exit_ns": null
+      }
+    },
+    {
+      "passed": true,
+      "target": "blink",
+      "startup": "rom",
+      "firmware_sha256": "0850b0591cfc623de2f5f6396cd577ece7c825d27d52f0fcefc160eaa33fecb6",
+      "recorded_replay": true,
+      "instruction_budgets": [
+        257,
+        4096
+      ],
+      "reset_repeated": true,
+      "observation": {
+        "uart": "",
+        "gpio_events": 5,
+        "gpio_sha256": "dc43819bd071f005def73cf0c53b4ac6ecaaf9afbd528ab62907e8808a7e95e1",
+        "bus_sha256": "4f53cda18c2baa0c0354bb5f9a3ecbe5ed12ab4d8e11ba873c2f11161202b945",
+        "bus_exchanges": 0,
+        "instructions": 35551,
+        "time_ns": 1100000000,
+        "stop": "DEADLINE",
+        "sdk_exit_stops": 0,
+        "first_exit_ns": null
+      }
+    },
+    {
+      "passed": true,
+      "target": "hello_serial",
+      "startup": "sdk",
+      "firmware_sha256": "66b0732375126533f6d30b464a6ad324a68c03c4cfb79793a125f0db4614b197",
+      "recorded_replay": true,
+      "instruction_budgets": [
+        257,
+        4096
+      ],
+      "reset_repeated": true,
+      "observation": {
+        "uart": "Hello, world!\r\nHello, world!\r\n",
+        "gpio_events": 0,
+        "gpio_sha256": "4f53cda18c2baa0c0354bb5f9a3ecbe5ed12ab4d8e11ba873c2f11161202b945",
+        "bus_sha256": "4f53cda18c2baa0c0354bb5f9a3ecbe5ed12ab4d8e11ba873c2f11161202b945",
+        "bus_exchanges": 0,
+        "instructions": 7148,
+        "time_ns": 1100000000,
+        "stop": "DEADLINE",
+        "sdk_exit_stops": 0,
+        "first_exit_ns": null
+      }
+    },
+    {
+      "passed": true,
+      "target": "hello_serial",
+      "startup": "rom",
+      "firmware_sha256": "66b0732375126533f6d30b464a6ad324a68c03c4cfb79793a125f0db4614b197",
+      "recorded_replay": true,
+      "instruction_budgets": [
+        257,
+        4096
+      ],
+      "reset_repeated": true,
+      "observation": {
+        "uart": "Hello, world!\r\nHello, world!\r\n",
+        "gpio_events": 0,
+        "gpio_sha256": "4f53cda18c2baa0c0354bb5f9a3ecbe5ed12ab4d8e11ba873c2f11161202b945",
+        "bus_sha256": "4f53cda18c2baa0c0354bb5f9a3ecbe5ed12ab4d8e11ba873c2f11161202b945",
+        "bus_exchanges": 0,
+        "instructions": 36002,
+        "time_ns": 1100000000,
+        "stop": "DEADLINE",
+        "sdk_exit_stops": 0,
+        "first_exit_ns": null
+      }
+    },
+    {
+      "passed": true,
+      "target": "hello_gpio_irq",
+      "startup": "rom",
+      "firmware_sha256": "df8d98b469ccb2eae015207898139f126c7553ab2be109f987f0dd85c7d0cead",
+      "recorded_replay": true,
+      "instruction_budgets": [
+        257,
+        4096
+      ],
+      "reset_repeated": true,
+      "observation": {
+        "uart": "Hello GPIO IRQ\r\nGPIO 2 EDGE_RISE\r\nGPIO 2 EDGE_FALL\r\n",
+        "gpio_events": 2,
+        "gpio_sha256": "3b0e70c65f240676230744b7611467dd2fb2500bcd9e2f7281a92bfd7bfd3d67",
+        "bus_sha256": "4f53cda18c2baa0c0354bb5f9a3ecbe5ed12ab4d8e11ba873c2f11161202b945",
+        "bus_exchanges": 0,
+        "instructions": 100000,
+        "time_ns": 100000000,
+        "stop": "DEADLINE",
+        "sdk_exit_stops": 0,
+        "first_exit_ns": null
+      }
+    },
+    {
+      "passed": true,
+      "target": "hello_adc",
+      "startup": "rom",
+      "firmware_sha256": "4543b28143cc770997b2fa3b428d83ae7f063d707ea634a5da88f40c10c8423b",
+      "recorded_replay": true,
+      "instruction_budgets": [
+        257,
+        4096
+      ],
+      "reset_repeated": true,
+      "observation": {
+        "uart": "ADC Example, measuring GPIO26\r\nRaw value: 0x800, voltage: 1.650000 V\r\nRaw value: 0x800, voltage: 1.650000 V\r\nRaw value: 0x800, voltage: 1.650000 V\r\n",
+        "gpio_events": 1,
+        "gpio_sha256": "a639cec1df52f31e7c24f138446591c3ecf16141b70278881ff2806a4e718656",
+        "bus_sha256": "4f53cda18c2baa0c0354bb5f9a3ecbe5ed12ab4d8e11ba873c2f11161202b945",
+        "bus_exchanges": 0,
+        "instructions": 53082,
+        "time_ns": 1100000000,
+        "stop": "DEADLINE",
+        "sdk_exit_stops": 0,
+        "first_exit_ns": null
+      }
+    },
+    {
+      "passed": true,
+      "target": "hello_pwm",
+      "startup": "rom",
+      "firmware_sha256": "db46d19df02b17aa8e43fa8a1e04f91447d67bdb0d369c5f02f04220656744ff",
+      "recorded_replay": true,
+      "instruction_budgets": [
+        257,
+        4096
+      ],
+      "reset_repeated": true,
+      "observation": {
+        "uart": "",
+        "gpio_events": 39,
+        "gpio_sha256": "16bda3ac6bf631e87dffd71f460870aeeaf5d90cdaa2179edf1e1bef43889703",
+        "bus_sha256": "4f53cda18c2baa0c0354bb5f9a3ecbe5ed12ab4d8e11ba873c2f11161202b945",
+        "bus_exchanges": 0,
+        "instructions": 32513,
+        "time_ns": 32513000,
+        "stop": "BREAKPOINT",
+        "sdk_exit_stops": 33,
+        "first_exit_ns": 32481000
+      }
+    },
+    {
+      "passed": true,
+      "target": "i2c_bus_scan",
+      "startup": "rom",
+      "firmware_sha256": "6b3ddb8362fc1a482d8c1e84a7c20dbec5234f8ef92df2443b4fd1b478b8f78f",
+      "recorded_replay": true,
+      "instruction_budgets": [
+        257,
+        4096
+      ],
+      "reset_repeated": true,
+      "observation": {
+        "uart": "\r\nI2C Bus Scan\r\n   0  1  2  3  4  5  6  7  8  9  A  B  C  D  E  F\r\n00 .  .  .  .  .  .  .  .  .  .  .  .  .  .  .  .\r\n10 .  .  .  .  .  .  .  .  .  .  .  .  .  .  .  .\r\n20 .  .  .  .  .  .  .  .  .  .  .  .  .  .  .  .\r\n30 .  .  .  .  .  .  .  .  .  .  .  .  .  .  .  .\r\n40 .  .  .  .  .  .  .  .  @  .  .  .  .  .  .  .\r\n50 .  .  .  .  .  .  .  .  .  .  .  .  .  .  .  .\r\n60 .  .  .  .  .  .  .  .  .  .  .  .  .  .  .  .\r\n70 .  .  .  .  .  .  .  .  .  .  .  .  .  .  .  .\r\nDone.\r\n",
+        "gpio_events": 2,
+        "gpio_sha256": "2ee42465a91e250a5ae8ac4cef4c44c6b0de5c69f6bfdf577500dfc3c530e902",
+        "bus_sha256": "9a5549d48774483c3a40d13db4d35b9a5ec3e18f41cd37aacb8aeedab1bd75a7",
+        "bus_exchanges": 112,
+        "instructions": 162840,
+        "time_ns": 162840000,
+        "stop": "BREAKPOINT",
+        "sdk_exit_stops": 1,
+        "first_exit_ns": 162840000
+      }
+    },
+    {
+      "passed": true,
+      "target": "hello_pio",
+      "startup": "rom",
+      "firmware_sha256": "9bf51abf9ca48a3d347b24308f0d4a3f5742c79391ff20279401ed6b6c4e67e2",
+      "recorded_replay": true,
+      "instruction_budgets": [
+        257,
+        4096
+      ],
+      "reset_repeated": true,
+      "observation": {
+        "uart": "Using gpio 25\r\n",
+        "gpio_events": 3,
+        "gpio_sha256": "5a1cd80f8a1c8bb20ec665a18b18bf28553ed7ca403ec9d2ee98a005f847bfc7",
+        "bus_sha256": "4f53cda18c2baa0c0354bb5f9a3ecbe5ed12ab4d8e11ba873c2f11161202b945",
+        "bus_exchanges": 0,
+        "instructions": 37249,
+        "time_ns": 1100000000,
+        "stop": "DEADLINE",
+        "sdk_exit_stops": 0,
+        "first_exit_ns": null
+      }
+    },
+    {
+      "passed": true,
+      "target": "hello_dma",
+      "startup": "rom",
+      "firmware_sha256": "a107fa83bf3809f5bba9e0471cdf08e894ecb7cc4b1a6d91606d54b147b2e92e",
+      "recorded_replay": true,
+      "instruction_budgets": [
+        257,
+        4096
+      ],
+      "reset_repeated": true,
+      "observation": {
+        "uart": "Hello, world! (from DMA)\r\n",
+        "gpio_events": 0,
+        "gpio_sha256": "4f53cda18c2baa0c0354bb5f9a3ecbe5ed12ab4d8e11ba873c2f11161202b945",
+        "bus_sha256": "4f53cda18c2baa0c0354bb5f9a3ecbe5ed12ab4d8e11ba873c2f11161202b945",
+        "bus_exchanges": 0,
+        "instructions": 34614,
+        "time_ns": 34614000,
+        "stop": "BREAKPOINT",
+        "sdk_exit_stops": 1,
+        "first_exit_ns": 34614000
+      }
+    },
+    {
+      "passed": true,
+      "target": "hello_multicore",
+      "startup": "rom",
+      "firmware_sha256": "a4a30629cdeb071ba2e74a9d485a73d32d7ef709fea027754c3b5c642ebf6777",
+      "recorded_replay": true,
+      "instruction_budgets": [
+        257,
+        4096
+      ],
+      "reset_repeated": true,
+      "observation": {
+        "uart": "Hello, multicore!\r\nIt's all gone well on core 0!Its all gone well on core 1!",
+        "gpio_events": 0,
+        "gpio_sha256": "4f53cda18c2baa0c0354bb5f9a3ecbe5ed12ab4d8e11ba873c2f11161202b945",
+        "bus_sha256": "4f53cda18c2baa0c0354bb5f9a3ecbe5ed12ab4d8e11ba873c2f11161202b945",
+        "bus_exchanges": 0,
+        "instructions": 43470,
+        "time_ns": 43470000,
+        "stop": "BREAKPOINT",
+        "sdk_exit_stops": 2563,
+        "first_exit_ns": 38346000
+      }
+    }
+  ],
+  "fixtures": [
+    {
+      "category": "project-authored SDK fixture",
+      "source": "firmware/sdk_project",
+      "passed": true,
+      "source_hashes": {
+        "firmware/sdk_project/CMakeLists.txt": "96eb9606d8cdc0c1dc28aa2312d755d4a9a3e2d501d979bed55b5f0dd6a86084",
+        "firmware/sdk_project/gate.pio": "7a0421f5a3207fa9aae59907ffe1c36c2b0a713e3d641d54d6f4f639d5247d95",
+        "firmware/sdk_project/generated.h.in": "961f2c2693ea0db8dfc678f904553be0d8acf842ab38c729d30444ebf1b431a8",
+        "firmware/sdk_project/left/value.c": "dd3240ba657f07a9c37bdfa7ea2ac41a3c11f5e34f90feb354c3b42ce354e405",
+        "firmware/sdk_project/main.c": "994e2dde433bca929820465df0a74fc6d68e1bcfa78635847c010b3dcb156fbb",
+        "firmware/sdk_project/right/value.c": "03de89e3aa9fe3dbbb5ca8982d2481e397ca74ce137061522358a69b7fc377b4",
+        "firmware/sdk_project/values.h": "fc82372972f3a419e1281b646196d88407d5ea03af2faf5358213bda35f03920"
+      }
+    },
+    {
+      "category": "project-authored SDK fixture",
+      "source": "firmware/sdk_spi",
+      "passed": true,
+      "source_hashes": {
+        "firmware/sdk_spi/CMakeLists.txt": "6617d2b4e22e53bc80c73d3fb27f0f7ef4c02d7a0534e3333849c7ea0af8dd67",
+        "firmware/sdk_spi/main.c": "d9f08dcd4c04c371034801624c40f9a03a6a66686e0e704e6963fa20acee018c"
+      }
+    },
+    {
+      "category": "existing project-authored SDK dashboard",
+      "source": "firmware/sdk/sdk_dashboard.c",
+      "source_sha256": "f03fcbab22a06b902d941c59079df3ed56ae2af87c78307d933dec5c4799d42c",
+      "elf_sha256": "e12ec1dc7d71bca0ccc05ba65dcf39c0a45fcfc4832a3c1dfff4ca2d96fe229a",
+      "passed": true
+    }
+  ],
+  "regression": {
+    "tests": 464,
+    "failed": 0,
+    "errors": 0,
+    "skipped": 0,
+    "reported_seconds": 680.54,
+    "sdk_projects_enabled": true,
+    "language_servers_enabled": true
+  },
+  "native": {
+    "abi": 1,
+    "public_functions": 24,
+    "contract_passed": true,
+    "asan_ubsan_contract_passed": true,
+    "asan_ubsan_stock_sdk_blink_uart_passed": true,
+    "leak_sanitizer": false,
+    "leak_sanitizer_reason": "Unsupported under sandbox ptrace; ASAN_OPTIONS=detect_leaks=0"
+  },
+  "desktop": [
+    {
+      "platform": "offscreen",
+      "scale": 1.0,
+      "checks": {
+        "configure_build_and_live_floating_serial": true,
+        "floating_workspace_font_and_laptop_layout": true,
+        "dock_all_preserves_source_and_manifest": true
+      },
+      "size": [
+        1366,
+        768
+      ],
+      "minimum_size": [
+        791,
+        577
+      ]
+    },
+    {
+      "platform": "wayland",
+      "scale": 1.0,
+      "checks": {
+        "configure_build_and_live_floating_serial": true,
+        "floating_workspace_font_and_laptop_layout": true,
+        "dock_all_preserves_source_and_manifest": true
+      },
+      "size": [
+        1366,
+        768
+      ],
+      "minimum_size": [
+        791,
+        577
+      ]
+    },
+    {
+      "platform": "offscreen",
+      "scale": 1.25,
+      "checks": {
+        "configure_build_and_live_floating_serial": true,
+        "floating_workspace_font_and_laptop_layout": true,
+        "dock_all_preserves_source_and_manifest": true
+      },
+      "size": [
+        1366,
+        768
+      ],
+      "minimum_size": [
+        791,
+        577
+      ]
+    },
+    {
+      "platform": "offscreen",
+      "scale": 1.5,
+      "checks": {
+        "configure_build_and_live_floating_serial": true,
+        "floating_workspace_font_and_laptop_layout": true,
+        "dock_all_preserves_source_and_manifest": true
+      },
+      "size": [
+        1366,
+        768
+      ],
+      "minimum_size": [
+        791,
+        577
+      ]
+    }
+  ],
+  "desktop_editor_fonts": [
+    11,
+    16,
+    24
+  ],
+  "installed_package": {
+    "passed": true,
+    "wheel": "rp2040_sim-0.1.0-cp312-cp312-linux_x86_64.whl",
+    "wheel_sha256": "c94f46c173530e60f531571fd04965261994cc9a10b89315383730cba5c7cb25",
+    "cli_json_targets": [
+      "bs2_default",
+      "project_a",
+      "project_b"
+    ],
+    "cli_project_b_uart": "project:42",
+    "gui_f7_configure_build_load_run": true,
+    "floating_editor_and_serial": true,
+    "adjacent_unicorn_library_verified": true,
+    "managed_sdk_offline_install_status_remove": true,
+    "external_sdk_removal_refused": true,
+    "sdk_tools_and_rom_excluded": true,
+    "licenses_notices_and_catalog_verified": true
+  },
+  "external_checks_open": [
+    "Physical Pico comparison",
+    "Real multi-monitor placement",
+    "Other operating-system desktops",
+    "Earlier participant usability and screen-reader studies"
+  ],
+  "excluded_features": [
+    "USB",
+    "networking",
+    "RP2350",
+    "external-bus DMA",
+    "general C++ compatibility",
+    "multi-tab IDE"
+  ]
+}

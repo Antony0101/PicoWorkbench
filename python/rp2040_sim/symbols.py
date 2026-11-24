@@ -2,6 +2,7 @@
 from bisect import bisect_right
 from dataclasses import dataclass
 from io import BytesIO
+from pathlib import Path
 
 from elftools.elf.elffile import ELFFile
 
@@ -45,8 +46,15 @@ class Symbols:
                     index = state.file - (0 if table.header.version >= 5 else 1)
                     entries = table.header.file_entry
                     if 0 <= index < len(entries):
-                        name = entries[index].name.decode("utf-8", "replace")
-                        self.lines.append(Location(state.address, name, state.line or 0))
+                        file_entry = entries[index]
+                        name = file_entry.name.decode("utf-8", "replace")
+                        directories = table.header.include_directory
+                        directory_index = file_entry.dir_index - (0 if table.header.version >= 5 else 1)
+                        directory = directories[directory_index].decode('utf-8', 'replace') if 0 <= directory_index < len(directories) else ''
+                        comp_dir = cu.get_top_DIE().attributes.get('DW_AT_comp_dir')
+                        base = comp_dir.value.decode('utf-8', 'replace') if comp_dir else ''
+                        filename = str((Path(base) / directory / name).resolve()) if base or directory or Path(name).is_absolute() else name
+                        self.lines.append(Location(state.address, filename, state.line or 0))
         self.lines.sort(key=lambda e: e.address)
         self._addresses = [e.address for e in self.lines]
 

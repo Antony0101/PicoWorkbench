@@ -11,6 +11,7 @@ physical board or cross compiler for that first run.
 | [Getting started](getting-started.md) | Fresh Linux installation, first run, optional tools and WSLg troubleshooting |
 | [Desktop workflow](desktop.md) | Circuit/Code/Debug layouts, detachable panels, wiring, saving, debugging and traces |
 | [Code editor](editor.md) | Editing, search, Problems, shortcuts and local C/MicroPython language services |
+| [Pico SDK projects](sdk-projects.md) | Managed SDK installation/removal, CMake targets, multi-file builds and source provenance |
 | [Examples and CLI](examples.md) | Bundled projects, expected results, custom firmware, traces and replay |
 | [Runtime tools](runtime-tools.md) | SSD1306 OLED, serial plotter, bus inspector and MicroPython device files |
 | [Boot modes](boot.md) | Direct load versus SDK shortcut/ROM boot, B2 ROM preparation, UF2 and flash |
@@ -43,9 +44,8 @@ characteristic.
 - [Development plans](../plan/README.md): design history and milestone records.
   Some pages describe proposals or evidence for earlier revisions; they are not
   a substitute for the current user guides.
-- [Phase 4 SDK project plan](../plan/phase-4/README.md): planned support for
-  existing CMake projects and an official-example compatibility suite; not yet
-  implemented.
+- [Phase 4 SDK project status](../plan/phase-4/implementation-status.md): current
+  implementation and acceptance evidence for existing CMake projects and official examples.
 
 ## Quick terminology
 
@@ -55,7 +55,7 @@ characteristic.
 | GPIO | A logical general-purpose input/output pin, such as GP25 |
 | ELF / UF2 | Compiled program/image formats; ELF can also carry debug information, while UF2 describes flash blocks |
 | ROM / boot2 | The chip's built-in startup code and the small flash-resident second-stage loader |
-| SDK | The Pico C/C++ software development kit; this project's editor builds one C source at a time |
+| SDK | The Pico C/C++ software development kit; imported projects can build multiple files while editing one buffer at a time |
 | REPL | MicroPython's interactive read–evaluate–print prompt, reached through UART in the supported profile |
 | Virtual time | Time inside the simulation; playback speed changes how quickly it advances relative to wall time |
 | Language server | A local tool such as clangd/Pyright supplying editor completion and diagnostics |
@@ -63,4 +63,5 @@ characteristic.
 Commands in these guides assume you are in the repository root and have installed
 the `.venv` environment. Commands under `tools/` may download dependencies or
 rebuild packaged assets when explicitly invoked; the application does not install
-tools or download firmware while running a project.
+tools or download firmware while running a project. Managed SDK installation is
+available through a separate explicit setup action.

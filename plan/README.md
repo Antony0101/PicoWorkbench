@@ -5,7 +5,7 @@
 | [Phase 1](phase-1/README.md) | C/Python simulator, desktop, peripherals, PIO/DMA/two cores, SDK/ROM boot and MicroPython | Linux implementation delivered for documented workloads; physical Pico and additional OS validation remain open |
 | [Phase 2](phase-2/README.md) | Desktop UI/UX: laptop layout, work protection, execution feedback, circuit editing, debugging, traces and accessibility | Linux implementation delivered; participant and screen-reader validation open |
 | [Phase 3](phase-3/README.md) | SSD1306 OLED, UART plotting, bus inspection, MicroPython files and matching dashboards | Linux/WSLg delivered; 386 tests, real firmware and installed-wheel/desktop checks passed |
-| [Phase 4](phase-4/README.md) | Official Pico SDK example validation, existing CMake projects, SDK setup and measured compatibility expansion | Planned; implementation and real-firmware gates not started |
+| [Phase 4](phase-4/README.md) | Official Pico SDK example validation, existing CMake projects, SDK setup and measured compatibility expansion | Complete for Linux/WSLg; physical/external checks remain open |
 
 These pages preserve design history and evidence for the revisions that delivered
 each milestone. Use the [documentation index](../docs/README.md) and

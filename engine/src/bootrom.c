@@ -20,6 +20,16 @@ uc_err sim_rom_map(sim_t *s) {
         put16(rom + 0x100 + 4 * i, codes[i]);
         put16(rom + 0x102 + 4 * i, 0x301 + 16 * i);
     }
+    /* V3 soft-float/double descriptors allow the stock SDK's runtime init to
+     * copy its tables even for integer-only programs. Calls through these
+     * entries fault explicitly below: actual arithmetic requires ROM mode. */
+    put16(rom + 0x180, 0x4653); put16(rom + 0x182, 0x800); /* SF */
+    put16(rom + 0x184, 0x4453); put16(rom + 0x186, 0x900); /* SD */
+    rom[0x7fe] = 32;
+    for (unsigned i = 0; i < 32; i++) {
+        put16(rom + 0x800 + 4 * i, 0x401 + 4 * i);
+        put16(rom + 0x900 + 4 * i, 0x501 + 4 * i);
+    }
     uc_err err = uc_mem_map(s->cpu, 0, sizeof(rom), UC_PROT_READ | UC_PROT_EXEC);
     if (!err) err = uc_mem_write(s->cpu, 0, rom, sizeof(rom));
     return err;
@@ -53,6 +63,13 @@ static bool memop(sim_t *s, unsigned fn, uint32_t *r) {
 }
 
 bool sim_rom_call(sim_t *s, uint32_t address) {
+    if (((address >= 0x400 && address < 0x480) ||
+         (address >= 0x500 && address < 0x580)) && !(address & 3)) {
+        sim_scheduler_instruction(s);
+        sim_fail(s, "Unsupported SDK shortcut ROM floating-point function %s slot %u; use ROM startup",
+                 address < 0x500 ? "SF" : "SD", (address & 0x7f) / 4);
+        return true;
+    }
     if (address != 0x200 && (address < 0x300 || address >= 0x380 || (address & 15))) return false;
     uint32_t r[3] = {0}, result = 0, lr = 0;
     uc_reg_read(s->cpu, UC_ARM_REG_R0, &r[0]); uc_reg_read(s->cpu, UC_ARM_REG_R1, &r[1]);
@@ -63,6 +80,10 @@ bool sim_rom_call(sim_t *s, uint32_t address) {
         if (r[0] == 0x100) {
             for (unsigned i = 0; i < sizeof(codes) / sizeof(codes[0]); i++)
                 if (r[1] == codes[i]) result = 0x301 + 16 * i;
+        }
+        if (r[0] == 0x180) {
+            if (r[1] == 0x4653) result = 0x800;
+            else if (r[1] == 0x4453) result = 0x900;
         }
         if (!result) { sim_fail(s, "Unsupported ROM lookup: table=0x%08x code=0x%04x", r[0], r[1]); return true; }
     } else {

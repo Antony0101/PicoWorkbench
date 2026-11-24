@@ -1,5 +1,8 @@
 # Phase 4 milestones
 
+Delivered 2026-11-24 for Linux/WSLg. See [status](implementation-status.md) and
+[recorded evidence](evidence.md); external checks remain listed separately.
+
 Implement in order. A successful compile is not evidence that firmware executes
 correctly. Each completed milestone needs real tools, expected runtime behavior,
 focused regressions and recorded versions/hashes.
